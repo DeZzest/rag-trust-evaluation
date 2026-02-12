@@ -1,0 +1,15 @@
+{
+  "name": "rag-trust-evaluation",
+  "version": "1.0.0",
+  "description": "Master's thesis project.",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

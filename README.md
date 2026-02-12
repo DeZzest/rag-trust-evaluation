@@ -1,2 +1,10 @@
-# rag-trust-evaluation
-Master's thesis project: evaluating answer trustworthiness in RAG systems for university document corpora.
+# RAG Trust Evaluation
+
+Master's thesis project.
+
+Stack:
+- TypeScript
+- Node.js
+
+Status:
+Initial project scaffold created.
