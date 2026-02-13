@@ -23,5 +23,5 @@ Initial project scaffold created.
 - **Test /ask endpoint**:
   - Start backend: `npm run dev`
   - Send request (example):
-    - `POST http://localhost:3000/ask`
+    - `POST http://localhost:4000/ask`
     - Body: `{ "question": "What is 2 + 2?" }`

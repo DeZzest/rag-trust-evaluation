@@ -1,6 +1,8 @@
 import express, { Application, Request, Response } from "express";
 import { generate } from "../services/ollama.service";
 
+console.log("App file loaded");
+
 const app: Application = express();
 
 app.use(express.json());
@@ -10,6 +12,8 @@ app.get("/health", (_req: Request, res: Response) => {
 });
 
 app.post("/ask", async (req: Request, res: Response) => {
+  console.log("ASK ENDPOINT HIT");
+  console.log("Body:", req.body);
   const question = req.body?.question;
 
   if (typeof question !== "string" || !question.trim()) {
