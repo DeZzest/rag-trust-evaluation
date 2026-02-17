@@ -1,5 +1,5 @@
 import express, { Application, Request, Response } from "express";
-import { generate } from "../services/ollama.service";
+import { generate } from "../modules/llm/ollama.service";
 import { generateEmbedding } from "../modules/embeddings/embedding.service";
 import {
   getOrCreateCollection,
@@ -190,6 +190,64 @@ app.post("/vector-test", async (req: Request, res: Response) => {
         message = "Error generating embeddings.";
       } else if (lower.includes("search")) {
         message = "Error performing similarity search.";
+      }
+    }
+
+    res.status(statusCode).json({ success: false, error: message });
+  }
+});
+
+app.post("/rag/query", async (req: Request, res: Response) => {
+  console.log("RAG/QUERY ENDPOINT HIT");
+  console.log("Body:", req.body);
+
+  try {
+    const { query, collectionId, topK } = req.body;
+
+    if (typeof query !== "string" || !query.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'query' is required and must be a string.",
+      });
+    }
+
+    if (!collectionId || typeof collectionId !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'collectionId' is required and must be a string.",
+      });
+    }
+
+    const { processRagQuery } = await import("../modules/rag/rag.service");
+
+    const result = await processRagQuery(
+      collectionId,
+      query,
+      topK ?? 3
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error in /rag/query endpoint:", error);
+
+    let message = "Internal server error.";
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      const lower = error.message.toLowerCase();
+      if (lower.includes("ecconnrefused") || lower.includes("connect")) {
+        message = "Ollama or ChromaDB is not running or not reachable.";
+      } else if (lower.includes("collection")) {
+        message = "Invalid or missing collection ID.";
+      } else if (lower.includes("embedding")) {
+        message = "Error generating query embedding.";
+      } else if (lower.includes("retrieval")) {
+        message = "Error retrieving documents.";
+      } else if (lower.includes("generation")) {
+        message = "Error generating answer.";
       }
     }
 
