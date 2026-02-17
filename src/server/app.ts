@@ -284,4 +284,74 @@ app.post("/rag/evaluate", async (req, res) => {
   }
 });
 
+app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
+  console.log("RAG/EVALUATE/BATCH ENDPOINT HIT");
+  console.log("Body:", req.body);
+
+  try {
+    const { collectionId, dataset } = req.body;
+
+    if (!collectionId || typeof collectionId !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'collectionId' is required and must be a string.",
+      });
+    }
+
+    if (!Array.isArray(dataset) || dataset.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'dataset' is required and must be a non-empty array.",
+      });
+    }
+
+    // Validate dataset items
+    for (let i = 0; i < dataset.length; i++) {
+      const item = dataset[i];
+      if (typeof item.query !== "string" || !item.query.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: `Dataset item ${i} must have a non-empty 'query' string.`,
+        });
+      }
+
+      if (!Array.isArray(item.relevantDocumentIds)) {
+        return res.status(400).json({
+          success: false,
+          error: `Dataset item ${i} must have 'relevantDocumentIds' array.`,
+        });
+      }
+    }
+
+    const { evaluateRagQueryBatch } = await import(
+      "../modules/evaluation/evaluation.service"
+    );
+
+    const result = await evaluateRagQueryBatch(collectionId, dataset);
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error in /rag/evaluate/batch endpoint:", error);
+
+    let message = "Internal server error.";
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      const lower = error.message.toLowerCase();
+      if (lower.includes("ecconnrefused") || lower.includes("connect")) {
+        message = "Ollama or ChromaDB is not running or not reachable.";
+      } else if (lower.includes("collection")) {
+        message = "Invalid or missing collection ID.";
+      } else if (lower.includes("evaluation")) {
+        message = "Error during batch evaluation.";
+      }
+    }
+
+    res.status(statusCode).json({ success: false, error: message });
+  }
+});
+
 export default app;
