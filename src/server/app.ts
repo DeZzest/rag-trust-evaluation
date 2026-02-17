@@ -255,4 +255,33 @@ app.post("/rag/query", async (req: Request, res: Response) => {
   }
 });
 
+app.post("/rag/evaluate", async (req, res) => {
+  try {
+    const { collectionId, query, relevantDocumentIds, groundTruth } = req.body;
+
+    if (!collectionId || !query || !Array.isArray(relevantDocumentIds)) {
+      return res.status(400).json({
+        success: false,
+        error: "collectionId, query, and relevantDocumentIds are required",
+      });
+    }
+
+    const { evaluateRagQuery } = await import(
+      "../modules/evaluation/evaluation.service"
+    );
+
+    const result = await evaluateRagQuery(
+      collectionId,
+      query,
+      relevantDocumentIds,
+      groundTruth
+    );
+
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: "Evaluation failed" });
+  }
+});
+
 export default app;
