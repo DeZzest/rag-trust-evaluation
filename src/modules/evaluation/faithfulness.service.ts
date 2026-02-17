@@ -2,7 +2,8 @@ import { generate } from "../llm/ollama.service";
 
 export async function evaluateFaithfulness(
   context: string,
-  answer: string
+  answer: string,
+  evaluationModel?: string
 ): Promise<number> {
   try {
     const prompt = `You are an AI evaluator specialized in assessing answer faithfulness.
@@ -21,7 +22,7 @@ Respond ONLY in valid JSON format with NO additional text:
   "reason": "short explanation of why this score"
 }`;
 
-    const response = await generate(prompt);
+    const response = await generate(prompt, evaluationModel);
 
     // Try to parse JSON response
     try {

@@ -289,7 +289,7 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
   console.log("Body:", req.body);
 
   try {
-    const { collectionId, dataset } = req.body;
+    const { collectionId, dataset, evaluationModel, maxConcurrency } = req.body;
 
     if (!collectionId || typeof collectionId !== "string") {
       return res.status(400).json({
@@ -327,7 +327,12 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
       "../modules/evaluation/evaluation.service"
     );
 
-    const result = await evaluateRagQueryBatch(collectionId, dataset);
+    const result = await evaluateRagQueryBatch(
+      collectionId,
+      dataset,
+      evaluationModel,
+      maxConcurrency ?? 2
+    );
 
     res.json({
       success: true,
@@ -352,6 +357,78 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
 
     res.status(statusCode).json({ success: false, error: message });
   }
+});
+
+app.post("/rag/evaluate/multimodel", async (req: Request, res: Response) => {
+  console.log("RAG/EVALUATE/MULTIMODEL ENDPOINT HIT");
+  console.log("Body:", req.body);
+
+  try {
+    const { collectionId, dataset, models, maxConcurrency } = req.body;
+
+    if (!collectionId || typeof collectionId !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'collectionId' is required and must be a string.",
+      });
+    }
+
+    if (!Array.isArray(dataset) || dataset.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'dataset' is required and must be a non-empty array.",
+      });
+    }
+
+    const modelsToUse = Array.isArray(models)
+      ? models
+      : ["mistral", "llama3.2:1b"];
+
+    const { evaluateRagQueryBatchMultiModel } = await import(
+      "../modules/evaluation/evaluation.service"
+    );
+
+    const result = await evaluateRagQueryBatchMultiModel(
+      collectionId,
+      dataset,
+      modelsToUse,
+      maxConcurrency ?? 2
+    );
+
+    res.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error("Error in /rag/evaluate/multimodel endpoint:", error);
+
+    res.status(500).json({
+      success: false,
+      error: "Multi-model evaluation failed",
+    });
+  }
+});
+
+app.get("/rag/leaderboard", (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    message: "Use /rag/evaluate/multimodel to generate leaderboard",
+    documentation: {
+      endpoint: "POST /rag/evaluate/multimodel",
+      payload: {
+        collectionId: "string",
+        dataset: [
+          {
+            query: "string",
+            relevantDocumentIds: ["string"],
+            groundTruth: "string (optional)",
+          },
+        ],
+        models: ["mistral", "llama3.2:1b"],
+        maxConcurrency: 2,
+      },
+    },
+  });
 });
 
 export default app;
