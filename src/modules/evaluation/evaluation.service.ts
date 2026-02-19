@@ -196,7 +196,7 @@ class ConcurrencyLimiter {
 }
 
 /**
- * Calculate trust score based on weighted metrics
+ * Calculate trust score based on weighted metrics with semantic compensation
  */
 function calculateTrustScore({
   precisionAtK,
@@ -207,15 +207,25 @@ function calculateTrustScore({
   faithfulnessScore: number;
   answerSimilarityToGroundTruth?: number;
 }): number {
-  const similarity = answerSimilarityToGroundTruth ?? 0.5;
+  let similarity = answerSimilarityToGroundTruth ?? 0.5;
+  
+  // 🔒 Protect against NaN
+  if (!Number.isFinite(similarity)) similarity = 0.5;
 
-  // 🔧 Use configurable weights
-  const trustScore =
+  // 🧠 Base trust calculation using configured weights
+  const baseScore =
     TRUST_WEIGHTS.faithfulness * faithfulnessScore +
     TRUST_WEIGHTS.precision * precisionAtK +
     TRUST_WEIGHTS.similarity * similarity;
 
-  return Math.max(0, Math.min(1, trustScore));
+  // 🧠 Semantic correctness compensation
+  // If model is faithful AND semantically similar, compensate for retrieval miss
+  if (faithfulnessScore >= 0.9 && similarity > 0.75) {
+    const compensatedScore = Math.max(baseScore, 0.75);
+    return Math.max(0, Math.min(1, compensatedScore));
+  }
+
+  return Math.max(0, Math.min(1, baseScore));
 }
 
 /** Diagnosis engine */
@@ -526,6 +536,7 @@ export async function evaluateRagQueryBatchMultiModel(
       const s = modelResults[model].statistics;
       const latencyPenalty = (s.averageGenerationLatency + s.averageEvaluationLatency) / 100000;
       const adjustedScore = (s.averageTrustScore ?? 0) - latencyPenalty;
+      const safeAdjusted = Math.max(0, adjustedScore ?? 0);
       return {
         model,
         avgTrustScore: s.averageTrustScore ?? 0,
@@ -534,7 +545,7 @@ export async function evaluateRagQueryBatchMultiModel(
         avgGenerationLatency: s.averageGenerationLatency ?? 0,
         avgEvaluationLatency: s.averageEvaluationLatency ?? 0,
         p95GenerationMs: s.p95GenerationMs ?? 0,
-        adjustedScore: adjustedScore ?? 0,
+        adjustedScore: safeAdjusted,
       };
     })
     .sort((a, b) => (b.adjustedScore ?? 0) - (a.adjustedScore ?? 0));
