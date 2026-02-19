@@ -21,11 +21,10 @@ function extractYear(fileName: string): number | null {
 
 function detectReferences(text: string): string[] {
   const refs: string[] = [];
-  // Case-insensitive, matches both 'See' and 'see', and allows for optional period
-  const refRegex = /see ([a-z ]+?)(?: section (\d+))?/gi;
+  const regex = /see\s+([a-z\s]+?)\s+section\s+(\d+)/gi;
   let match;
-  while ((match = refRegex.exec(text))) {
-    refs.push(match[1].trim() + (match[2] ? ` Section ${match[2]}` : ""));
+  while ((match = regex.exec(text)) !== null) {
+    refs.push(`${match[1].trim()} Section ${match[2]}`);
   }
   return refs;
 }
