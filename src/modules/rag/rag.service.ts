@@ -27,12 +27,14 @@ export interface RagQueryResult {
  * @param collectionId - ID of the vector collection
  * @param query - User query
  * @param topK - Number of documents to retrieve (default: 3)
+ * @param generationModel - LLM model to use for generation (default: "llama3")
  * @returns Promise<RagQueryResult> - Query result with answer and sources
  */
 export async function processRagQuery(
   collectionId: string,
   query: string,
-  topK: number = 3
+  topK: number = 3,
+  generationModel?: string
 ): Promise<RagQueryResult> {
   try {
     if (!collectionId || collectionId.trim().length === 0) {
@@ -105,7 +107,7 @@ Answer:`;
     // 5️⃣ Generate answer using LLM
     console.log("Generating answer with LLM...");
     const startGeneration = Date.now();
-    const answer = await generate(prompt);
+    const answer = await generate(prompt, generationModel);
     const generationMs = Date.now() - startGeneration;
     console.log(`✅ Answer generated in ${generationMs}ms`);
 

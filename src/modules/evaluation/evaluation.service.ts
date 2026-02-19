@@ -19,6 +19,7 @@ export interface EvaluationQueryResult {
   answerSimilarityToGroundTruth?: number;
   trustScore: number;
   evaluationModel: string;
+  generationModel: string;
   error?: string;
   performance: {
     embeddingMs: number;
@@ -114,6 +115,7 @@ export async function evaluateRagQuery(
   query: string,
   relevantDocumentIds: string[],
   groundTruth?: string,
+  generationModel?: string,
   evaluationModel?: string
 ): Promise<EvaluationQueryResult> {
   const start = Date.now();
@@ -124,7 +126,8 @@ export async function evaluateRagQuery(
   const ragResult = await processRagQuery(
     collectionId,
     query,
-    relevantDocumentIds.length > 0 ? relevantDocumentIds.length : 3
+    relevantDocumentIds.length > 0 ? relevantDocumentIds.length : 3,
+    generationModel
   );
 
   // Calculate retrieval metrics
@@ -178,6 +181,7 @@ export async function evaluateRagQuery(
     answerSimilarityToGroundTruth: answerSimilarity,
     trustScore,
     evaluationModel: evaluationModel ?? "default",
+    generationModel: generationModel ?? "default",
     performance: {
       embeddingMs: ragResult.performance.embeddingMs,
       retrievalMs: ragResult.performance.retrievalMs,
@@ -198,39 +202,25 @@ export async function evaluateRagQueryBatch(
     groundTruth?: string;
   }>,
   evaluationModel?: string,
+  generationModel?: string,
   maxConcurrency: number = 2
-): Promise<{
-  dataset: EvaluationQueryResult[];
-  statistics: BatchStatistics;
-}> {
-  const startBatch = Date.now();
-
-  console.log(
-    `Starting batch evaluation with ${dataset.length} items (concurrency: ${maxConcurrency})...`
-  );
-
+): Promise<{ dataset: EvaluationQueryResult[]; statistics: BatchStatistics }> {
+  const start = Date.now();
   const limiter = new ConcurrencyLimiter(maxConcurrency);
-  const results: EvaluationQueryResult[] = [];
 
   const promises = dataset.map((item, index) =>
     limiter.run(async () => {
-      console.log(`[${index + 1}/${dataset.length}] Processing: "${item.query}"`);
-
       try {
-        const result = await evaluateRagQuery(
+        return await evaluateRagQuery(
           collectionId,
           item.query,
           item.relevantDocumentIds,
           item.groundTruth,
+          generationModel,
           evaluationModel
         );
-
-        results.push(result);
-        return result;
       } catch (error) {
-        console.error(`Error evaluating query ${index + 1}:`, error);
-
-        const errorResult: EvaluationQueryResult = {
+        return {
           query: item.query,
           ragAnswer: null,
           groundTruth: item.groundTruth,
@@ -240,24 +230,16 @@ export async function evaluateRagQueryBatch(
           trustScore: 0,
           evaluationModel: evaluationModel ?? "default",
           error: error instanceof Error ? error.message : "Unknown error",
-          performance: {
-            embeddingMs: 0,
-            retrievalMs: 0,
-            generationMs: 0,
-            totalMs: 0,
-          },
-        };
-
-        results.push(errorResult);
-        return errorResult;
+          performance: { embeddingMs: 0, retrievalMs: 0, generationMs: 0, totalMs: 0 },
+        } as EvaluationQueryResult;
       }
     })
   );
 
-  // Wait for all evaluations to complete
-  await Promise.all(promises);
+  // deterministic order preserved by Promise.all
+  const results = await Promise.all(promises);
 
-  // Calculate aggregate statistics
+  // use `results` to compute statistics (замініть попередню логіку яка працювала з push)
   const validResults = results.filter((r) => r.trustScore !== undefined);
 
   const averageTrustScore =
@@ -286,7 +268,7 @@ export async function evaluateRagQueryBatch(
         validResults.length
       : 0;
 
-  const batchTotalMs = Date.now() - startBatch;
+  const batchTotalMs = Date.now() - start;
 
   console.log(`\n✅ Batch evaluation completed in ${batchTotalMs}ms`);
   console.log(`Average Trust Score: ${averageTrustScore.toFixed(2)}`);
@@ -305,10 +287,7 @@ export async function evaluateRagQueryBatch(
     concurrency: maxConcurrency,
   };
 
-  return {
-    dataset: results,
-    statistics,
-  };
+  return { dataset: results, statistics };
 }
 
 /**
@@ -342,17 +321,16 @@ export async function evaluateRagQueryBatchMultiModel(
 
   const modelResults: Record<string, { dataset: EvaluationQueryResult[]; statistics: BatchStatistics }> = {};
 
-  for (const model of models) {
-    console.log(`\n🔬 Evaluating with model: ${model}`);
-
+  for (const generationModel of models) {
+    console.log(`Evaluating generation model: ${generationModel}`);
     const result = await evaluateRagQueryBatch(
       collectionId,
       dataset,
-      model,
+      /* evaluationModel */ process.env.EVAL_MODEL ?? "mistral",
+      /* generationModel */ generationModel,
       maxConcurrency
     );
-
-    modelResults[model] = result;
+    modelResults[generationModel] = result;
   }
 
   const totalBatchMs = Date.now() - startBatch;
