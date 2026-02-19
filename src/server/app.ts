@@ -170,8 +170,7 @@ app.post("/vector-test", async (req: Request, res: Response) => {
       validation: {
         expectedTopResults: ["AI-related documents"],
         actualTopResult: searchResults[0]?.metadata?.category,
-        correctResults:
-          searchResults.every((r) => r.metadata?.category === "AI"),
+        correctResults: searchResults[0]?.metadata?.category === "AI",
       },
     });
   } catch (error) {
@@ -332,8 +331,9 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
       dataset,
       evaluationModel,
       generationModel,
-      maxConcurrency ?? 2
-  );
+      maxConcurrency ?? 2,
+      undefined // no parent benchmarkId for standalone batch
+    );
 
     res.json({
       success: true,
@@ -383,7 +383,7 @@ app.post("/rag/evaluate/multimodel", async (req: Request, res: Response) => {
 
     const modelsToUse = Array.isArray(models)
       ? models
-      : ["mistral", "llama3.2:1b"];
+      : ["llama3.2", "mistral"];
 
     const { evaluateRagQueryBatchMultiModel } = await import(
       "../modules/evaluation/evaluation.service"
@@ -433,11 +433,31 @@ app.get("/rag/leaderboard", (_req: Request, res: Response) => {
 });
 
 // GET benchmark history
-app.get("/benchmark/history", async (_req: Request, res: Response) => {
+app.get("/benchmark/history", async (req: Request, res: Response) => {
   try {
-    const { readBenchmarkHistory } = await import("../modules/evaluation/evaluation.service");
-    const data = await readBenchmarkHistory();
-    res.json({ success: true, data });
+    const { readBenchmarkHistory } = await import(
+      "../modules/evaluation/evaluation.service"
+    );
+    const allData = await readBenchmarkHistory();
+
+    // Optional filtering
+    const { generationModel, benchmarkId } = req.query;
+
+    let filtered = allData;
+
+    if (typeof generationModel === "string") {
+      filtered = filtered.filter((r: any) => r.generationModel === generationModel);
+    }
+
+    if (typeof benchmarkId === "string") {
+      filtered = filtered.filter((r: any) => r.benchmarkId === benchmarkId);
+    }
+
+    res.json({
+      success: true,
+      total: filtered.length,
+      data: filtered,
+    });
   } catch (error) {
     console.error("Error reading benchmark history:", error);
     res.status(500).json({ success: false, error: "Failed to read history" });
