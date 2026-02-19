@@ -332,8 +332,9 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
       dataset,
       evaluationModel,
       generationModel,
-      maxConcurrency ?? 2
-  );
+      maxConcurrency ?? 2,
+      undefined // no parent benchmarkId for standalone batch
+    );
 
     res.json({
       success: true,
@@ -383,7 +384,7 @@ app.post("/rag/evaluate/multimodel", async (req: Request, res: Response) => {
 
     const modelsToUse = Array.isArray(models)
       ? models
-      : ["mistral", "llama3.2:1b"];
+      : ["llama3.2", "mistral"];
 
     const { evaluateRagQueryBatchMultiModel } = await import(
       "../modules/evaluation/evaluation.service"
