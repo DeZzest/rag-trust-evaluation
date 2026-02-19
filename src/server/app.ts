@@ -289,7 +289,7 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
   console.log("Body:", req.body);
 
   try {
-    const { collectionId, dataset, evaluationModel, maxConcurrency } = req.body;
+    const { collectionId, dataset, evaluationModel, generationModel, maxConcurrency } = req.body;
 
     if (!collectionId || typeof collectionId !== "string") {
       return res.status(400).json({
@@ -331,8 +331,9 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
       collectionId,
       dataset,
       evaluationModel,
+      generationModel,
       maxConcurrency ?? 2
-    );
+  );
 
     res.json({
       success: true,
@@ -429,6 +430,18 @@ app.get("/rag/leaderboard", (_req: Request, res: Response) => {
       },
     },
   });
+});
+
+// GET benchmark history
+app.get("/benchmark/history", async (_req: Request, res: Response) => {
+  try {
+    const { readBenchmarkHistory } = await import("../modules/evaluation/evaluation.service");
+    const data = await readBenchmarkHistory();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error("Error reading benchmark history:", error);
+    res.status(500).json({ success: false, error: "Failed to read history" });
+  }
 });
 
 export default app;
