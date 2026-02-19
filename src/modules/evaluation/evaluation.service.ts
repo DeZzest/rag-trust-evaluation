@@ -1,7 +1,35 @@
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
 import { processRagQuery } from "../rag/rag.service";
 import { calculateRetrievalMetrics } from "./retrieval.metrics";
 import { evaluateFaithfulness } from "./faithfulness.service";
 import { calculateAnswerSimilarity } from "./answer.similarity";
+
+const BENCH_DIR = path.resolve(process.cwd(), "data");
+const BENCH_FILE = path.join(BENCH_DIR, "benchmarks.json");
+
+function ensureBenchFile() {
+  if (!fs.existsSync(BENCH_DIR)) fs.mkdirSync(BENCH_DIR, { recursive: true });
+  if (!fs.existsSync(BENCH_FILE)) fs.writeFileSync(BENCH_FILE, "[]", "utf8");
+}
+
+async function persistBenchmarkRecord(record: any) {
+  try {
+    ensureBenchFile();
+    const content = await fs.promises.readFile(BENCH_FILE, "utf8");
+    const arr = JSON.parse(content || "[]");
+    arr.push(record);
+    await fs.promises.writeFile(BENCH_FILE, JSON.stringify(arr, null, 2), "utf8");
+  } catch (err) {
+    console.warn("Failed to persist benchmark record:", err);
+  }
+}
+
+function datasetHash(dataset: any) {
+  const str = JSON.stringify(dataset);
+  return crypto.createHash("sha256").update(str).digest("hex");
+}
 
 /**
  * Interface for evaluation result
@@ -20,11 +48,15 @@ export interface EvaluationQueryResult {
   trustScore: number;
   evaluationModel: string;
   generationModel: string;
+  diagnosis: string;
   error?: string;
   performance: {
     embeddingMs: number;
     retrievalMs: number;
     generationMs: number;
+    evaluationMs: number;
+    faithfulnessMs: number;
+    similarityMs: number;
     totalMs: number;
   };
 }
@@ -38,7 +70,9 @@ export interface BatchStatistics {
   averageTrustScore: number;
   averageFaithfulness: number;
   averagePrecision: number;
-  averageLatency: number;
+  averageGenerationLatency: number;
+  averageEvaluationLatency: number;
+  averageSimilarityLatency: number;
   batchTotalMs: number;
   concurrency: number;
 }
@@ -48,7 +82,7 @@ export interface BatchStatistics {
  */
 class ConcurrencyLimiter {
   private running = 0;
-  private queue: Array<() => Promise<any>> = [];
+  private queue: Array<() => void> = [];
 
   constructor(private limit: number) {}
 
@@ -56,18 +90,20 @@ class ConcurrencyLimiter {
     if (this.running < this.limit) {
       this.running++;
       try {
-        return await fn();
+        const res = await fn();
+        return res;
       } finally {
         this.running--;
         this.processQueue();
       }
     } else {
-      return new Promise((resolve, reject) => {
+      return new Promise<T>((resolve, reject) => {
         this.queue.push(async () => {
           try {
-            resolve(await fn());
-          } catch (error) {
-            reject(error);
+            const r = await fn();
+            resolve(r);
+          } catch (e) {
+            reject(e);
           }
         });
       });
@@ -79,10 +115,12 @@ class ConcurrencyLimiter {
       const fn = this.queue.shift();
       if (fn) {
         this.running++;
-        fn().finally(() => {
-          this.running--;
-          this.processQueue();
-        });
+        Promise.resolve()
+          .then(fn)
+          .finally(() => {
+            this.running--;
+            this.processQueue();
+          });
       }
     }
   }
@@ -101,10 +139,16 @@ function calculateTrustScore({
   answerSimilarityToGroundTruth?: number;
 }): number {
   const similarity = answerSimilarityToGroundTruth ?? 0.5;
-  const trustScore =
-    0.4 * faithfulnessScore + 0.3 * precisionAtK + 0.3 * similarity;
-
+  const trustScore = 0.4 * faithfulnessScore + 0.3 * precisionAtK + 0.3 * similarity;
   return Math.max(0, Math.min(1, trustScore));
+}
+
+/** Diagnosis engine */
+function diagnose(r: EvaluationQueryResult): string {
+  if (r.retrieval.precisionAtK < 0.5) return "retrieval_issue";
+  if (r.faithfulnessScore < 0.5) return "hallucination_issue";
+  if ((r.answerSimilarityToGroundTruth ?? 0) < 0.5) return "answer_quality_issue";
+  return "healthy";
 }
 
 /**
@@ -120,9 +164,7 @@ export async function evaluateRagQuery(
 ): Promise<EvaluationQueryResult> {
   const start = Date.now();
 
-  console.log(`Evaluating RAG query: "${query}"`);
-
-  // Execute RAG query
+  // 1) Run RAG query (generationModel controls generator)
   const ragResult = await processRagQuery(
     collectionId,
     query,
@@ -130,7 +172,6 @@ export async function evaluateRagQuery(
     generationModel
   );
 
-  // Calculate retrieval metrics
   const retrievalMetrics = calculateRetrievalMetrics(
     ragResult.sources.map((s) => ({
       id: s.documentId,
@@ -141,26 +182,34 @@ export async function evaluateRagQuery(
     relevantDocumentIds
   );
 
-  // Build context for faithfulness evaluation
-  const context = ragResult.sources
-    .map((s, i) => `[${i + 1}] ${s.text}`)
-    .join("\n\n");
+  const context = ragResult.sources.map((s, i) => `[${i + 1}] ${s.text}`).join("\n\n");
 
-  // 🔥 Parallel evaluation: faithfulness + similarity in parallel
-  console.log("Evaluating faithfulness and similarity in parallel...");
-  const [faithfulnessScore, answerSimilarity] = await Promise.all([
-    evaluateFaithfulness(context, ragResult.answer, evaluationModel),
-    groundTruth
-      ? calculateAnswerSimilarity(ragResult.answer, groundTruth)
-      : Promise.resolve(undefined),
-  ]);
+  // 2) Parallel evaluation with timings for faithfulness and similarity
+  const evalStart = Date.now();
 
-  console.log(`✅ Faithfulness score: ${faithfulnessScore.toFixed(2)}`);
-  if (answerSimilarity) {
-    console.log(`✅ Answer similarity: ${answerSimilarity.toFixed(2)}`);
-  }
+  let faithfulnessMs = 0;
+  let similarityMs = 0;
 
-  // Calculate trust score
+  const faithPromise = (async () => {
+    const s = Date.now();
+    const v = await evaluateFaithfulness(context, ragResult.answer, evaluationModel);
+    faithfulnessMs = Date.now() - s;
+    return v;
+  })();
+
+  const simPromise = (async () => {
+    if (!groundTruth) return undefined;
+    const s = Date.now();
+    const v = await calculateAnswerSimilarity(ragResult.answer, groundTruth);
+    similarityMs = Date.now() - s;
+    return v;
+  })();
+
+  const [faithfulnessScore, answerSimilarity] = await Promise.all([faithPromise, simPromise]);
+
+  const evaluationMs = Date.now() - evalStart;
+
+  // 3) Trust score + diagnosis
   const trustScore = calculateTrustScore({
     precisionAtK: retrievalMetrics.precisionAtK,
     faithfulnessScore,
@@ -169,10 +218,7 @@ export async function evaluateRagQuery(
 
   const totalMs = Date.now() - start;
 
-  console.log(`✅ Trust score: ${trustScore.toFixed(2)}`);
-  console.log(`✅ Evaluation completed in ${totalMs}ms`);
-
-  return {
+  const result: EvaluationQueryResult = {
     query,
     ragAnswer: ragResult.answer,
     groundTruth,
@@ -182,13 +228,21 @@ export async function evaluateRagQuery(
     trustScore,
     evaluationModel: evaluationModel ?? "default",
     generationModel: generationModel ?? "default",
+    diagnosis: "unknown",
     performance: {
       embeddingMs: ragResult.performance.embeddingMs,
       retrievalMs: ragResult.performance.retrievalMs,
       generationMs: ragResult.performance.generationMs,
+      evaluationMs,
+      faithfulnessMs,
+      similarityMs,
       totalMs,
     },
   };
+
+  result.diagnosis = diagnose(result);
+
+  return result;
 }
 
 /**
@@ -205,10 +259,11 @@ export async function evaluateRagQueryBatch(
   generationModel?: string,
   maxConcurrency: number = 2
 ): Promise<{ dataset: EvaluationQueryResult[]; statistics: BatchStatistics }> {
-  const start = Date.now();
+  const startBatch = Date.now();
+
   const limiter = new ConcurrencyLimiter(maxConcurrency);
 
-  const promises = dataset.map((item, index) =>
+  const promises = dataset.map((item) =>
     limiter.run(async () => {
       try {
         return await evaluateRagQuery(
@@ -229,52 +284,52 @@ export async function evaluateRagQueryBatch(
           answerSimilarityToGroundTruth: undefined,
           trustScore: 0,
           evaluationModel: evaluationModel ?? "default",
+          generationModel: generationModel ?? "default",
+          diagnosis: "error",
           error: error instanceof Error ? error.message : "Unknown error",
-          performance: { embeddingMs: 0, retrievalMs: 0, generationMs: 0, totalMs: 0 },
+          performance: { embeddingMs: 0, retrievalMs: 0, generationMs: 0, evaluationMs: 0, faithfulnessMs: 0, similarityMs: 0, totalMs: 0 },
         } as EvaluationQueryResult;
       }
     })
   );
 
-  // deterministic order preserved by Promise.all
+  // deterministic order preserved
   const results = await Promise.all(promises);
 
-  // use `results` to compute statistics (замініть попередню логіку яка працювала з push)
+  // aggregates
   const validResults = results.filter((r) => r.trustScore !== undefined);
 
   const averageTrustScore =
     validResults.length > 0
-      ? validResults.reduce((sum, r) => sum + (r.trustScore ?? 0), 0) /
-        validResults.length
+      ? validResults.reduce((sum, r) => sum + (r.trustScore ?? 0), 0) / validResults.length
       : 0;
 
   const averageFaithfulness =
     validResults.length > 0
-      ? validResults.reduce((sum, r) => sum + (r.faithfulnessScore ?? 0), 0) /
-        validResults.length
+      ? validResults.reduce((sum, r) => sum + (r.faithfulnessScore ?? 0), 0) / validResults.length
       : 0;
 
   const averagePrecision =
     validResults.length > 0
-      ? validResults.reduce(
-          (sum, r) => sum + (r.retrieval?.precisionAtK ?? 0),
-          0
-        ) / validResults.length
+      ? validResults.reduce((sum, r) => sum + (r.retrieval?.precisionAtK ?? 0), 0) / validResults.length
       : 0;
 
-  const averageLatency =
+  const averageGenerationLatency =
     validResults.length > 0
-      ? validResults.reduce((sum, r) => sum + (r.performance?.totalMs ?? 0), 0) /
-        validResults.length
+      ? validResults.reduce((sum, r) => sum + (r.performance.generationMs ?? 0), 0) / validResults.length
       : 0;
 
-  const batchTotalMs = Date.now() - start;
+  const averageEvaluationLatency =
+    validResults.length > 0
+      ? validResults.reduce((sum, r) => sum + (r.performance.evaluationMs ?? 0), 0) / validResults.length
+      : 0;
 
-  console.log(`\n✅ Batch evaluation completed in ${batchTotalMs}ms`);
-  console.log(`Average Trust Score: ${averageTrustScore.toFixed(2)}`);
-  console.log(`Average Faithfulness: ${averageFaithfulness.toFixed(2)}`);
-  console.log(`Average Precision: ${averagePrecision.toFixed(2)}`);
-  console.log(`Average Per-Query Latency: ${averageLatency.toFixed(0)}ms`);
+  const averageSimilarityLatency =
+    validResults.length > 0
+      ? validResults.reduce((sum, r) => sum + (r.performance.similarityMs ?? 0), 0) / validResults.length
+      : 0;
+
+  const batchTotalMs = Date.now() - startBatch;
 
   const statistics: BatchStatistics = {
     totalQueries: dataset.length,
@@ -282,16 +337,29 @@ export async function evaluateRagQueryBatch(
     averageTrustScore,
     averageFaithfulness,
     averagePrecision,
-    averageLatency,
+    averageGenerationLatency,
+    averageEvaluationLatency,
+    averageSimilarityLatency,
     batchTotalMs,
     concurrency: maxConcurrency,
   };
+
+  // persist a record for this run (one per generationModel + evaluationModel)
+  const record = {
+    timestamp: new Date().toISOString(),
+    datasetHash: datasetHash(dataset),
+    generationModel: generationModel ?? "default",
+    evaluationModel: evaluationModel ?? "default",
+    statistics,
+  };
+
+  await persistBenchmarkRecord(record);
 
   return { dataset: results, statistics };
 }
 
 /**
- * Evaluate batch with multiple models for benchmarking
+ * Evaluate batch with multiple generation models for benchmarking
  */
 export async function evaluateRagQueryBatchMultiModel(
   collectionId: string,
@@ -300,8 +368,9 @@ export async function evaluateRagQueryBatchMultiModel(
     relevantDocumentIds: string[];
     groundTruth?: string;
   }>,
-  models: string[] = ["mistral", "llama3.2:1b"],
-  maxConcurrency: number = 2
+  models: string[] = ["llama3.2", "mistral"],
+  maxConcurrency: number = 2,
+  evaluationModel: string = process.env.EVAL_MODEL ?? "mistral"
 ): Promise<{
   modelResults: Record<string, { dataset: EvaluationQueryResult[]; statistics: BatchStatistics }>;
   leaderboard: Array<{
@@ -309,25 +378,21 @@ export async function evaluateRagQueryBatchMultiModel(
     avgTrustScore: number;
     avgFaithfulness: number;
     avgPrecision: number;
-    avgLatency: number;
+    avgGenerationLatency: number;
+    avgEvaluationLatency: number;
   }>;
   totalBatchMs: number;
 }> {
   const startBatch = Date.now();
 
-  console.log(
-    `Starting multi-model batch evaluation with ${dataset.length} queries and ${models.length} models...`
-  );
-
   const modelResults: Record<string, { dataset: EvaluationQueryResult[]; statistics: BatchStatistics }> = {};
 
   for (const generationModel of models) {
-    console.log(`Evaluating generation model: ${generationModel}`);
     const result = await evaluateRagQueryBatch(
       collectionId,
       dataset,
-      /* evaluationModel */ process.env.EVAL_MODEL ?? "mistral",
-      /* generationModel */ generationModel,
+      evaluationModel,
+      generationModel,
       maxConcurrency
     );
     modelResults[generationModel] = result;
@@ -335,20 +400,35 @@ export async function evaluateRagQueryBatchMultiModel(
 
   const totalBatchMs = Date.now() - startBatch;
 
-  // Create leaderboard
   const leaderboard = models
-    .map((model) => ({
-      model,
-      avgTrustScore: modelResults[model].statistics.averageTrustScore,
-      avgFaithfulness: modelResults[model].statistics.averageFaithfulness,
-      avgPrecision: modelResults[model].statistics.averagePrecision,
-      avgLatency: modelResults[model].statistics.averageLatency,
-    }))
-    .sort((a, b) => b.avgTrustScore - a.avgTrustScore);
+    .map((model) => {
+      const s = modelResults[model].statistics;
+      // composite adjustedScore = trust - latencyPenalty
+      const latencyPenalty = (s.averageGenerationLatency + s.averageEvaluationLatency) / 100000;
+      const adjustedScore = s.averageTrustScore - latencyPenalty;
+      return {
+        model,
+        avgTrustScore: s.averageTrustScore,
+        avgFaithfulness: s.averageFaithfulness,
+        avgPrecision: s.averagePrecision,
+        avgGenerationLatency: s.averageGenerationLatency,
+        avgEvaluationLatency: s.averageEvaluationLatency,
+        adjustedScore,
+      };
+    })
+    .sort((a, b) => b.adjustedScore - a.adjustedScore);
 
-  return {
-    modelResults,
-    leaderboard,
-    totalBatchMs,
-  };
+  return { modelResults, leaderboard, totalBatchMs };
+}
+
+/** Helper to read persisted history */
+export async function readBenchmarkHistory() {
+  try {
+    ensureBenchFile();
+    const content = await fs.promises.readFile(BENCH_FILE, "utf8");
+    return JSON.parse(content || "[]");
+  } catch (err) {
+    console.warn("Failed to read benchmark history:", err);
+    return [];
+  }
 }
