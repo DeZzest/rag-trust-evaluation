@@ -1,0 +1,38 @@
+{
+  "id": "eval-demo-001",
+  "description": "Academic demo corpus — stable evaluation queries (copy)",
+  "dataset": [
+    {
+      "id": "q1",
+      "query": "What is the minimum admission score in 2024?",
+      "groundTruth": "The minimum admission score for admissions in 2024 is 75 out of 100.",
+      "relevantDocumentIds": ["admission_rules_2024.txt"]
+    },
+    {
+      "id": "q2",
+      "query": "How much is the Bachelor's tuition fee?",
+      "groundTruth": "The annual tuition fee for Bachelor's programs in 2024 is 35,000 UAH.",
+      "relevantDocumentIds": ["admission_rules_2024.txt"],
+      "notes": "Ambiguous between 2023 and 2024; preferred answer is 2024 value."
+    },
+    {
+      "id": "q3",
+      "query": "What happens after three academic integrity violations?",
+      "groundTruth": "A student is expelled after three academic integrity violations.",
+      "relevantDocumentIds": ["academic_integrity_policy.txt", "expulsion_policy.txt"]
+    },
+    {
+      "id": "q4",
+      "query": "Can a student retake an exam three times?",
+      "groundTruth": "No. A student may retake an exam at most twice.",
+      "relevantDocumentIds": ["exam_retake_policy.txt"]
+    },
+    {
+      "id": "q5",
+      "query": "Can a student lose scholarship due to cheating?",
+      "groundTruth": "Yes. Scholarship termination can occur due to academic integrity violations; termination happens after the second violation.",
+      "relevantDocumentIds": ["scholarships_regulation_2024.txt", "academic_integrity_policy.txt"],
+      "notes": "Cross-reference: scholarship termination references integrity violations."
+    }
+  ]
+}

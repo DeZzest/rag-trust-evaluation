@@ -1,7 +1,14 @@
 node_modules
 dist
 .env
+
+# Generated data
+data/ingested_corpus.jsonl
 data/benchmarks.json
+data/chroma/
+data/vector_store/
+
+!data/university_corpus/
 
 # Logs
 logs

@@ -4,7 +4,9 @@
   "description": "Master's thesis project.",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts"
+    "dev": "ts-node src/index.ts",
+    "ingest:corpus": "ts-node src/modules/ingest/ingest_corpus.ts",
+    "index:corpus": "ts-node src/modules/vector/index_corpus.ts"
   },
   "dependencies": {
     "dotenv": "^17.3.1",
