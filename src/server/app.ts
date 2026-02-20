@@ -201,7 +201,16 @@ app.post("/rag/query", async (req: Request, res: Response) => {
   console.log("Body:", req.body);
 
   try {
-    const { query, collectionId, topK } = req.body;
+    const {
+      query,
+      collectionId,
+      topK,
+      year,
+      documentType,
+      generationModel,
+      includeFaithfulness,
+      evaluationModel,
+    } = req.body;
 
     if (typeof query !== "string" || !query.trim()) {
       return res.status(400).json({
@@ -217,13 +226,61 @@ app.post("/rag/query", async (req: Request, res: Response) => {
       });
     }
 
+    if (topK !== undefined && typeof topK !== "number") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'topK' must be a number when provided.",
+      });
+    }
+
+    if (year !== undefined && typeof year !== "number") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'year' must be a number when provided.",
+      });
+    }
+
+    if (documentType !== undefined && typeof documentType !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'documentType' must be a string when provided.",
+      });
+    }
+
+    if (generationModel !== undefined && typeof generationModel !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'generationModel' must be a string when provided.",
+      });
+    }
+
+    if (
+      includeFaithfulness !== undefined &&
+      typeof includeFaithfulness !== "boolean"
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'includeFaithfulness' must be a boolean when provided.",
+      });
+    }
+
+    if (evaluationModel !== undefined && typeof evaluationModel !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'evaluationModel' must be a string when provided.",
+      });
+    }
+
     const { processRagQuery } = await import("../modules/rag/rag.service");
 
-    const result = await processRagQuery(
-      collectionId,
-      query,
-      topK ?? 3
-    );
+    const result = await processRagQuery(collectionId, query, {
+      topK: topK ?? 3,
+      year,
+      documentType,
+      generationModel,
+      includeFaithfulness,
+      evaluationModel,
+    });
 
     res.json({
       success: true,
@@ -256,7 +313,14 @@ app.post("/rag/query", async (req: Request, res: Response) => {
 
 app.post("/rag/evaluate", async (req, res) => {
   try {
-    const { collectionId, query, relevantDocumentIds, groundTruth } = req.body;
+    const {
+      collectionId,
+      query,
+      relevantDocumentIds,
+      groundTruth,
+      generationModel,
+      evaluationModel,
+    } = req.body;
 
     if (!collectionId || !query || !Array.isArray(relevantDocumentIds)) {
       return res.status(400).json({
@@ -273,7 +337,9 @@ app.post("/rag/evaluate", async (req, res) => {
       collectionId,
       query,
       relevantDocumentIds,
-      groundTruth
+      groundTruth,
+      generationModel,
+      evaluationModel
     );
 
     res.json({ success: true, result });

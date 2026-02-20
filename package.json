@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "ts-node src/index.ts",
     "ingest:corpus": "ts-node src/modules/ingest/ingest_corpus.ts",
-    "index:corpus": "ts-node src/modules/vector/index_corpus.ts"
+    "index:corpus": "ts-node src/modules/vector/index_corpus.ts",
+    "test:phase3": "ts-node src/tests/phase3.checks.ts"
   },
   "dependencies": {
     "dotenv": "^17.3.1",

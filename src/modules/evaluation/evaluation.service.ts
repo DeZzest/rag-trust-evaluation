@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { processRagQuery } from "../rag/rag.service";
+import { calculateTrustScore, TRUST_WEIGHTS } from "../rag/trust.score";
+import { CitationValidationResult, TrustBreakdown } from "../rag/types";
 import { calculateRetrievalMetrics } from "./retrieval.metrics";
 import { evaluateFaithfulness } from "./faithfulness.service";
 import { calculateAnswerSimilarity } from "./answer.similarity";
@@ -9,28 +11,14 @@ import { calculateAnswerSimilarity } from "./answer.similarity";
 const BENCH_DIR = path.resolve(process.cwd(), "data");
 const BENCH_FILE = path.join(BENCH_DIR, "benchmarks.json");
 
-// 🔧 Safe number parsing for env variables
-function safeNumber(value: string | undefined, fallback: number): number {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-// 🔧 Trust score weights from env (with validation)
-const TRUST_WEIGHTS = {
-  faithfulness: safeNumber(process.env.TRUST_WEIGHT_FAITH, 0.4),
-  precision: safeNumber(process.env.TRUST_WEIGHT_PREC, 0.3),
-  similarity: safeNumber(process.env.TRUST_WEIGHT_SIM, 0.3),
-};
-
 // Version for tracking evaluation logic changes
-const EVALUATION_VERSION = "1.0.0";
+const EVALUATION_VERSION = "1.1.0";
 
 function ensureBenchFile() {
   if (!fs.existsSync(BENCH_DIR)) fs.mkdirSync(BENCH_DIR, { recursive: true });
   if (!fs.existsSync(BENCH_FILE)) fs.writeFileSync(BENCH_FILE, "[]", "utf8");
 }
 
-// 📊 Calculate percentile (p95, p99, etc) — mathematical precision fix
 function percentile(arr: number[], p: number): number {
   if (arr.length === 0) return 0;
   const sorted = [...arr].sort((a, b) => a - b);
@@ -38,9 +26,7 @@ function percentile(arr: number[], p: number): number {
   return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
 }
 
-// 🔒 Validate record before persistence
 function validateBenchmarkRecord(record: any): boolean {
-  // Must have valid string fields
   if (typeof record.generationModel !== "string") {
     console.warn("Invalid generationModel type:", typeof record.generationModel);
     return false;
@@ -51,7 +37,6 @@ function validateBenchmarkRecord(record: any): boolean {
     return false;
   }
 
-  // Don't persist empty or zero records
   if (!record.statistics.datasetSize || record.statistics.datasetSize === 0) {
     console.warn("Skipping empty dataset record");
     return false;
@@ -71,7 +56,6 @@ function validateBenchmarkRecord(record: any): boolean {
 }
 
 async function persistBenchmarkRecord(record: any) {
-  // 🔒 Validate before persistence
   if (!validateBenchmarkRecord(record)) {
     console.warn("Record validation failed, skipping persistence");
     return;
@@ -83,7 +67,7 @@ async function persistBenchmarkRecord(record: any) {
     const arr = JSON.parse(content || "[]");
     arr.push(record);
     await fs.promises.writeFile(BENCH_FILE, JSON.stringify(arr, null, 2), "utf8");
-    console.log(`✅ Benchmark record persisted (ID: ${record.benchmarkId})`);
+    console.log(`Benchmark record persisted (ID: ${record.benchmarkId})`);
   } catch (err) {
     console.warn("Failed to persist benchmark record:", err);
   }
@@ -94,13 +78,12 @@ function datasetHash(dataset: any) {
   return crypto.createHash("sha256").update(str).digest("hex");
 }
 
-/**
- * Interface for evaluation result
- */
 export interface EvaluationQueryResult {
   query: string;
   ragAnswer: string | null;
   groundTruth?: string;
+  citations: number[];
+  citationValidation: CitationValidationResult;
   retrieval: {
     precisionAtK: number;
     recallAtK: number;
@@ -109,6 +92,7 @@ export interface EvaluationQueryResult {
   faithfulnessScore: number;
   answerSimilarityToGroundTruth?: number;
   trustScore: number;
+  trustBreakdown: TrustBreakdown;
   evaluationModel: string;
   generationModel: string;
   diagnosis: string;
@@ -125,9 +109,6 @@ export interface EvaluationQueryResult {
   };
 }
 
-/**
- * Interface for batch statistics
- */
 export interface BatchStatistics {
   totalQueries: number;
   successfulEvaluations: number;
@@ -146,9 +127,6 @@ export interface BatchStatistics {
   evaluationVersion: string;
 }
 
-/**
- * Concurrency limiter for Ollama requests
- */
 class ConcurrencyLimiter {
   private running = 0;
   private queue: Array<() => void> = [];
@@ -165,18 +143,18 @@ class ConcurrencyLimiter {
         this.running--;
         this.processQueue();
       }
-    } else {
-      return new Promise<T>((resolve, reject) => {
-        this.queue.push(async () => {
-          try {
-            const r = await fn();
-            resolve(r);
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
     }
+
+    return new Promise<T>((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const r = await fn();
+          resolve(r);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
   }
 
   private processQueue() {
@@ -195,50 +173,31 @@ class ConcurrencyLimiter {
   }
 }
 
-/**
- * Calculate trust score based on weighted metrics with semantic compensation
- */
-function calculateTrustScore({
-  precisionAtK,
-  faithfulnessScore,
-  answerSimilarityToGroundTruth,
-}: {
-  precisionAtK: number;
-  faithfulnessScore: number;
-  answerSimilarityToGroundTruth?: number;
-}): number {
-  let similarity = answerSimilarityToGroundTruth ?? 0.5;
-  
-  // 🔒 Protect against NaN
-  if (!Number.isFinite(similarity)) similarity = 0.5;
-
-  // 🧠 Base trust calculation using configured weights
-  const baseScore =
-    TRUST_WEIGHTS.faithfulness * faithfulnessScore +
-    TRUST_WEIGHTS.precision * precisionAtK +
-    TRUST_WEIGHTS.similarity * similarity;
-
-  // 🧠 Semantic correctness compensation
-  // If model is faithful AND semantically similar, compensate for retrieval miss
-  if (faithfulnessScore >= 0.9 && similarity > 0.75) {
-    const compensatedScore = Math.max(baseScore, 0.75);
-    return Math.max(0, Math.min(1, compensatedScore));
-  }
-
-  return Math.max(0, Math.min(1, baseScore));
+function defaultCitationValidation(issue: string): CitationValidationResult {
+  return {
+    citations: [],
+    uniqueCitations: [],
+    invalidCitations: [],
+    hasCitations: false,
+    factualSentenceCount: 0,
+    citedSentenceCount: 0,
+    missingCitationSentenceCount: 0,
+    coverage: 0,
+    citationValidity: 0,
+    isValid: false,
+    retryCount: 0,
+    issues: [issue],
+  };
 }
 
-/** Diagnosis engine */
 function diagnose(r: EvaluationQueryResult): string {
   if (r.retrieval.precisionAtK < 0.5) return "retrieval_issue";
   if (r.faithfulnessScore < 0.5) return "hallucination_issue";
   if ((r.answerSimilarityToGroundTruth ?? 0) < 0.5) return "answer_quality_issue";
+  if (!r.citationValidation.isValid) return "citation_issue";
   return "healthy";
 }
 
-/**
- * Evaluate a single RAG query with comprehensive metrics
- */
 export async function evaluateRagQuery(
   collectionId: string,
   query: string,
@@ -249,13 +208,10 @@ export async function evaluateRagQuery(
 ): Promise<EvaluationQueryResult> {
   const start = Date.now();
 
-  // 1) Run RAG query (generationModel controls generator)
-  const ragResult = await processRagQuery(
-    collectionId,
-    query,
-    relevantDocumentIds.length > 0 ? relevantDocumentIds.length : 3,
-    generationModel
-  );
+  const ragResult = await processRagQuery(collectionId, query, {
+    topK: relevantDocumentIds.length > 0 ? relevantDocumentIds.length : 3,
+    generationModel,
+  });
 
   const retrievalMetrics = calculateRetrievalMetrics(
     ragResult.sources.map((s) => ({
@@ -269,9 +225,7 @@ export async function evaluateRagQuery(
 
   const context = ragResult.sources.map((s, i) => `[${i + 1}] ${s.text}`).join("\n\n");
 
-  // 2) Parallel evaluation with timings for faithfulness and similarity
   const evalStart = Date.now();
-
   let faithfulnessMs = 0;
   let similarityMs = 0;
 
@@ -291,33 +245,38 @@ export async function evaluateRagQuery(
   })();
 
   const [faithfulnessScore, answerSimilarity] = await Promise.all([faithPromise, simPromise]);
-
   const evaluationMs = Date.now() - evalStart;
 
-  // 🔒 Protect against NaN similarity
   let safeSimilarity = answerSimilarity ?? 0.5;
   if (!Number.isFinite(safeSimilarity)) safeSimilarity = 0.5;
 
-  // 3) Trust score + diagnosis
-  const trustScore = calculateTrustScore({
+  const trustBreakdown = calculateTrustScore({
+    mode: "full",
     precisionAtK: retrievalMetrics.precisionAtK,
     faithfulnessScore,
     answerSimilarityToGroundTruth: safeSimilarity,
+    citationCoverage: ragResult.citationValidation.coverage,
+    citationValidity: ragResult.citationValidation.citationValidity,
+    citationInvalidAfterRetry:
+      ragResult.citationValidation.retryCount > 0 &&
+      !ragResult.citationValidation.isValid,
+    weights: TRUST_WEIGHTS,
   });
 
   const totalMs = Date.now() - start;
-
-  // 🔥 Cold start detection (Ollama warm-up)
   const coldStart = evaluationMs > 30000;
 
   const result: EvaluationQueryResult = {
     query,
     ragAnswer: ragResult.answer,
     groundTruth,
+    citations: ragResult.citations,
+    citationValidation: ragResult.citationValidation,
     retrieval: retrievalMetrics,
     faithfulnessScore,
     answerSimilarityToGroundTruth: safeSimilarity,
-    trustScore,
+    trustScore: trustBreakdown.score,
+    trustBreakdown,
     evaluationModel: evaluationModel ?? "default",
     generationModel: generationModel ?? "default",
     diagnosis: "unknown",
@@ -334,13 +293,9 @@ export async function evaluateRagQuery(
   };
 
   result.diagnosis = diagnose(result);
-
   return result;
 }
 
-/**
- * Evaluate multiple RAG queries in batch with concurrency control
- */
 export async function evaluateRagQueryBatch(
   collectionId: string,
   dataset: Array<{
@@ -354,7 +309,6 @@ export async function evaluateRagQueryBatch(
   parentBenchmarkId?: string
 ): Promise<{ dataset: EvaluationQueryResult[]; statistics: BatchStatistics }> {
   const startBatch = Date.now();
-
   const limiter = new ConcurrencyLimiter(maxConcurrency);
 
   const promises = dataset.map((item) =>
@@ -373,10 +327,25 @@ export async function evaluateRagQueryBatch(
           query: item.query,
           ragAnswer: null,
           groundTruth: item.groundTruth,
+          citations: [],
+          citationValidation: defaultCitationValidation("evaluation_error"),
           retrieval: { precisionAtK: 0, recallAtK: 0, averageSimilarity: 0 },
           faithfulnessScore: 0,
           answerSimilarityToGroundTruth: undefined,
           trustScore: 0,
+          trustBreakdown: {
+            mode: "full",
+            score: 0,
+            citationCoverage: 0,
+            citationValidity: 0,
+            faithfulnessScore: 0,
+            precisionAtK: 0,
+            answerSimilarityToGroundTruth: 0,
+            baseScore: 0,
+            citationScore: 0,
+            semanticCompensationApplied: false,
+            cappedByCitationPolicy: false,
+          },
           evaluationModel: evaluationModel ?? "default",
           generationModel: generationModel ?? "default",
           diagnosis: "error",
@@ -396,10 +365,7 @@ export async function evaluateRagQueryBatch(
     })
   );
 
-  // deterministic order preserved
   const results = await Promise.all(promises);
-
-  // aggregates
   const validResults = results.filter((r) => r.trustScore !== undefined && !r.error);
 
   const averageTrustScore =
@@ -439,10 +405,8 @@ export async function evaluateRagQueryBatch(
         validResults.length
       : 0;
 
-  // 📊 P95 latencies
   const p95GenerationMs = percentile(generationLatencies, 0.95);
   const p95EvaluationMs = percentile(evaluationLatencies, 0.95);
-
   const batchTotalMs = Date.now() - startBatch;
 
   const statistics: BatchStatistics = {
@@ -463,7 +427,6 @@ export async function evaluateRagQueryBatch(
     evaluationVersion: EVALUATION_VERSION,
   };
 
-  // persist a record for this run
   const record = {
     benchmarkId: parentBenchmarkId ?? crypto.randomUUID(),
     timestamp: new Date().toISOString(),
@@ -474,13 +437,9 @@ export async function evaluateRagQueryBatch(
   };
 
   await persistBenchmarkRecord(record);
-
   return { dataset: results, statistics };
 }
 
-/**
- * Evaluate batch with multiple generation models for benchmarking
- */
 export async function evaluateRagQueryBatchMultiModel(
   collectionId: string,
   dataset: Array<{
@@ -509,28 +468,27 @@ export async function evaluateRagQueryBatchMultiModel(
   const benchmarkId = crypto.randomUUID();
   const startBatch = Date.now();
 
-  console.log(`\n📊 Starting multi-model evaluation (ID: ${benchmarkId})`);
-  console.log(`📋 Models: ${models.join(", ")}`);
-  console.log(`📊 Dataset size: ${dataset.length}`);
+  console.log(`\nStarting multi-model evaluation (ID: ${benchmarkId})`);
+  console.log(`Models: ${models.join(", ")}`);
+  console.log(`Dataset size: ${dataset.length}`);
 
   const modelResults: Record<string, { dataset: EvaluationQueryResult[]; statistics: BatchStatistics }> = {};
 
   for (const generationModel of models) {
-    console.log(`\n🔬 Evaluating generation model: ${generationModel}`);
+    console.log(`\nEvaluating generation model: ${generationModel}`);
     const result = await evaluateRagQueryBatch(
       collectionId,
       dataset,
       evaluationModel,
       generationModel,
       maxConcurrency,
-      benchmarkId // Pass parent benchmarkId
+      benchmarkId
     );
     modelResults[generationModel] = result;
   }
 
   const totalBatchMs = Date.now() - startBatch;
 
-  // 🔒 Safety: use ?? 0 to prevent undefined in sort
   const leaderboard = models
     .map((model) => {
       const s = modelResults[model].statistics;
@@ -550,7 +508,7 @@ export async function evaluateRagQueryBatchMultiModel(
     })
     .sort((a, b) => (b.adjustedScore ?? 0) - (a.adjustedScore ?? 0));
 
-  console.log(`\n🏆 Leaderboard (Benchmark ID: ${benchmarkId}):`);
+  console.log(`\nLeaderboard (Benchmark ID: ${benchmarkId}):`);
   leaderboard.forEach((item, i) => {
     console.log(
       `${i + 1}. ${item.model} - Trust: ${(item.avgTrustScore * 100).toFixed(1)}% | Adjusted: ${(item.adjustedScore * 100).toFixed(1)}%`
@@ -560,7 +518,6 @@ export async function evaluateRagQueryBatchMultiModel(
   return { benchmarkId, modelResults, leaderboard, totalBatchMs };
 }
 
-/** Helper to read persisted history */
 export async function readBenchmarkHistory() {
   try {
     ensureBenchFile();

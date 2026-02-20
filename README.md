@@ -1,12 +1,34 @@
 # RAG Trust Evaluation
 
-Stable, production-style RAG evaluation engine for local benchmarking, trust analysis, and regression testing.
+Trust-aware RAG engine for local benchmarking with Ollama + Chroma + metadata-aware retrieval + citation validation.
+
+## Phase 3 Trust-Aware Flow
+
+```
+Query
+  -> Metadata-aware Vector Retrieval
+  -> Context Builder (metadata + citation map)
+  -> LLM generation (citation-enforced prompt)
+  -> Citation extraction/validation (strict + one retry)
+  -> Evaluation layer
+  -> Trust score aggregation
+```
+
+### Key behavior
+- Retrieval uses metadata filters (`year`, `documentType`) and latest-year preference.
+- Generated answers must use numeric citations `[n]`.
+- Citation validation checks:
+  - citations exist
+  - citation indices are in range `1..N`
+  - sentence-level citation coverage
+- If validation fails, generation is retried once.
+- `POST /rag/query` returns trust metrics (lightweight mode by default).
+- Evaluation mode adds full trust with faithfulness + similarity + citation signals.
 
 ## Project structure & data policy
 
-- Only synthetic academic corpus `.txt` files in `data/university_corpus/` are versioned (pushed to git).
-- All generated artifacts (`data/ingested_corpus.jsonl`, Chroma DB, vector stores) are **not** versioned — they are rebuilt locally.
-- This ensures reproducibility, minimal repo size, and no sensitive or machine-specific data in git.
+- Only synthetic corpus `.txt` files in `data/university_corpus/` are versioned.
+- Generated artifacts (`data/ingested_corpus.jsonl`, Chroma DB contents, benchmarks output) are local-only.
 
 ## Quick start
 
@@ -14,59 +36,94 @@ Stable, production-style RAG evaluation engine for local benchmarking, trust ana
    ```bash
    npm install
    ```
-
-2. Configure `.env` (see `.env.example`):
-   - `PORT` (default 4000)
-   - `OLLAMA_BASE_URL` (default http://localhost:11434)
-   - `CHROMA_BASE_URL` (default http://localhost:8000)
-   - `CHROMA_COLLECTION` (e.g. university-corpus)
+2. Configure `.env`:
+   - `PORT` (default `4000`)
+   - `OLLAMA_BASE_URL` (default `http://localhost:11434`)
+   - `CHROMA_BASE_URL` (default `http://localhost:8000`)
+   - `CHROMA_COLLECTION` (default `university-corpus`)
    - `TRUST_WEIGHT_FAITH`, `TRUST_WEIGHT_PREC`, `TRUST_WEIGHT_SIM`
    - `EVAL_MODEL`
-
-3. Prepare the vector index:
+3. Build corpus/index and run server:
    ```bash
-   npm run ingest:corpus   # Chunk and structure corpus into JSONL
-   npm run index:corpus    # Generate embeddings and index into Chroma
-   npm run dev             # Start the server (or: npm run server)
+   npm run ingest:corpus
+   npm run index:corpus
+   npm run dev
    ```
 
 ## Core endpoints
 
-- `GET /health` — liveness
-- `POST /ask` — quick LLM call (body: `{ question }`)
-- `POST /embed` — generate embedding (body: `{ text }`)
-- `POST /vector-test` — end-to-end embedding + Chroma store + search (sanity check)
-- `POST /rag/query` — single RAG query (body: `{ collectionId, query, topK? }`)
-- `POST /rag/evaluate` — single evaluation (body: `{ collectionId, query, relevantDocumentIds, groundTruth? }`)
-- `POST /rag/evaluate/batch` — batch evaluation (body: `{ collectionId, dataset, ... }`)
-- `POST /rag/evaluate/multimodel` — multi-model benchmark (body: `{ collectionId, dataset, models?, ... }`)
-- `GET /benchmark/history` — persisted benchmark history
+- `GET /health`
+- `POST /ask`
+- `POST /embed`
+- `POST /vector-test`
+- `POST /rag/query`
+- `POST /rag/evaluate`
+- `POST /rag/evaluate/batch`
+- `POST /rag/evaluate/multimodel`
+- `GET /benchmark/history`
 
-## Key features
+## `POST /rag/query` (Phase 3)
 
-- Trust score: configurable weights (faithfulness, precision, similarity)
-- Version-aware retrieval: always prefers latest year if not specified
-- Metadata filtering: filter by year, document type, etc.
-- Cross-reference detection for advanced trust/temporal analysis
-- p95 latency, cold-start detection, concurrency limiter
-- All evaluation runs are reproducible from corpus `.txt` files
-
-## Files of interest
-
-- `src/modules/ingest/ingest_corpus.ts` — chunking, metadata, cross-ref extraction
-- `src/modules/vector/index_corpus.ts` — embedding, vector DB, metadata-aware retrieval
-- `src/modules/evaluation/evaluation.service.ts` — metrics, persistence, leaderboard
-- `src/modules/rag/rag.service.ts` — RAG workflow (embed → retrieve → generate)
-- `src/modules/llm/ollama.service.ts` — Ollama client
-
-## Running validation tests
-
-Start server, then from repo root:
-```bash
-bash test-evaluation.sh
+### Request
+```json
+{
+  "collectionId": "string",
+  "query": "What is the minimum admission score in 2024?",
+  "topK": 3,
+  "year": 2024,
+  "documentType": "admission",
+  "generationModel": "llama3.2",
+  "includeFaithfulness": false,
+  "evaluationModel": "mistral"
+}
 ```
-The script runs:
-- Normal batch (validates datasetSize, p95, trustWeights, evaluationVersion)
-- Multi-model (validates benchmarkId, leaderboard)
-- Edge case (empty dataset rejected)
-- History read
+
+### Response (additive, backward-compatible)
+```json
+{
+  "success": true,
+  "answer": "Minimum admission score is 75/100 [1].",
+  "sources": [],
+  "contextTrace": [],
+  "citations": [1],
+  "citationValidation": {
+    "isValid": true,
+    "coverage": 1,
+    "citationValidity": 1,
+    "retryCount": 0,
+    "issues": []
+  },
+  "trust": {
+    "score": 0.92,
+    "mode": "lightweight",
+    "breakdown": {}
+  },
+  "performance": {}
+}
+```
+
+## Evaluation behavior
+
+- Retrieval metrics use document-level normalization:
+  - relevant ids: filename without `.txt`
+  - retrieved ids: `metadata.documentId + "_" + metadata.year` (if year exists), otherwise `metadata.documentId`
+- Full trust scoring combines:
+  - faithfulness, precision, semantic similarity
+  - citation coverage and validity
+- Citation policy cap:
+  - lightweight trust capped at `0.35` when citations still invalid after retry
+  - full trust capped at `0.60` when citations still invalid after retry
+
+## Phase 3 checks
+
+Run lightweight automated checks (no new dependencies):
+
+```bash
+npm run test:phase3
+```
+
+This validates:
+- context formatting and citation map trace
+- citation extraction/validation rules
+- lightweight/full trust formula behavior
+- document-level retrieval id normalization
