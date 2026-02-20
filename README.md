@@ -50,6 +50,26 @@ Query
    npm run dev
    ```
 
+## Frontend dashboard
+
+1. Install frontend dependencies:
+   ```bash
+   cd frontend
+   npm install
+   ```
+2. Run Vite dev server:
+   ```bash
+   npm run dev
+   ```
+3. Open:
+   - `http://localhost:5173`
+
+The frontend calls backend endpoints:
+- `POST /rag/query`
+- `POST /rag/evaluate`
+
+Set `VITE_API_BASE_URL` if backend runs on a non-default host/port.
+
 ## Core endpoints
 
 - `GET /health`
@@ -82,7 +102,15 @@ Query
 ```json
 {
   "success": true,
+  "collectionId": "string",
   "answer": "Minimum admission score is 75/100 [1].",
+  "trustScore": 0.92,
+  "metrics": {
+    "trustScore": 0.92,
+    "citationCoverage": 1,
+    "citationValidity": 1
+  },
+  "retrieved": [],
   "sources": [],
   "contextTrace": [],
   "citations": [1],
