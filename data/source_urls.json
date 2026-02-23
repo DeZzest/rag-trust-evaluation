@@ -1,0 +1,61 @@
+[
+  {
+    "id": "lute_admission_rules_2026",
+    "type": "html",
+    "category": "admission",
+    "year": 2026,
+    "url": "https://www.lute.lviv.ua/admissions/documents/osnovni-polozhennja-pravil-priiomu/?L=6",
+    "title": "Основні положення правил прийому",
+    "crawlDepth": 0,
+    "maxPages": 1,
+    "includePdfLinks": true,
+    "maxPdfLinks": 8
+  },
+  {
+    "id": "lute_admission_documents_2026",
+    "type": "html",
+    "category": "admission_documents",
+    "year": 2026,
+    "url": "https://www.lute.lviv.ua/admissions/documents/dokumenti-neobkhidni-dlja-vstupu/?L=6",
+    "title": "Документи, необхідні для вступу",
+    "crawlDepth": 0,
+    "maxPages": 1,
+    "includePdfLinks": true,
+    "maxPdfLinks": 8
+  },
+  {
+    "id": "lute_regulations_2026",
+    "type": "html",
+    "category": "regulations",
+    "year": 2026,
+    "url": "https://www.lute.lviv.ua/universitet/normativni-dokumenti/?L=6",
+    "title": "Нормативні документи",
+    "crawlDepth": 0,
+    "maxPages": 1,
+    "includePdfLinks": true,
+    "maxPdfLinks": 20
+  },
+  {
+    "id": "lute_material_base_2026",
+    "type": "html",
+    "category": "material_base",
+    "year": 2026,
+    "url": "https://www.lute.lviv.ua/universitet/materialno-tekhnichna-baza/?L=6",
+    "title": "Матеріально-технічна база",
+    "crawlDepth": 0,
+    "maxPages": 1,
+    "includePdfLinks": false
+  },
+  {
+    "id": "lute_academic_integrity_2026",
+    "type": "html",
+    "category": "academic_integrity",
+    "year": 2026,
+    "url": "https://www.lute.lviv.ua/education/nauk-vydan/2184/?L=6",
+    "title": "Академічна доброчесність",
+    "crawlDepth": 0,
+    "maxPages": 1,
+    "includePdfLinks": true,
+    "maxPdfLinks": 10
+  }
+]

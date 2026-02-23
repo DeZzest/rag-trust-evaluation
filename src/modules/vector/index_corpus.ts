@@ -5,12 +5,22 @@ import { getOrCreateCollection, addDocuments, similaritySearch, SearchResult } f
 import { RetrievedChunk } from "../rag/types";
 
 const INGESTED_FILE = path.join(__dirname, "../../../data/ingested_corpus.jsonl");
-const COLLECTION_NAME = process.env.CHROMA_COLLECTION ?? "university-corpus";
+const COLLECTION_NAME = process.env.CHROMA_COLLECTION ?? "lute_university_docs";
+
+function toSafeChunkIdPart(value: unknown, fallback: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) return fallback;
+  return value
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-zA-Z0-9.\-]/g, "_");
+}
 
 export async function indexCorpus() {
   const collection = await getOrCreateCollection(COLLECTION_NAME);
   const lines = fs.readFileSync(INGESTED_FILE, "utf-8").split(/\r?\n/).filter(Boolean);
   const docs = [];
+  const seenIds = new Set<string>();
+
   for (let i = 0; i < lines.length; ++i) {
     const { text, metadata } = JSON.parse(lines[i]);
     const embedding = await generateEmbedding(text);
@@ -22,8 +32,24 @@ export async function indexCorpus() {
         filteredMetadata[k] = v;
       }
     }
+
+    const documentId = toSafeChunkIdPart(metadata.documentId, "document");
+    const yearToken =
+      metadata.year === null || metadata.year === undefined
+        ? "na"
+        : String(metadata.year);
+    const sectionToken = toSafeChunkIdPart(
+      metadata.subsection ?? metadata.section,
+      `chunk-${i + 1}`
+    );
+    let id = `${documentId}_${yearToken}_${sectionToken}`;
+    if (seenIds.has(id)) {
+      id = `${documentId}_${yearToken}_${sectionToken}-v${i + 1}`;
+    }
+    seenIds.add(id);
+
     docs.push({
-      id: `${metadata.documentId}_${metadata.year ?? "na"}_${metadata.subsection}`,
+      id,
       text,
       embedding,
       metadata: filteredMetadata,
@@ -41,6 +67,18 @@ export interface RetrievalOptions {
   year?: number;
   documentType?: string;
   topK?: number;
+}
+
+function looksLikeCollectionId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+async function resolveCollectionId(collectionIdOrName: string): Promise<string> {
+  if (looksLikeCollectionId(collectionIdOrName)) return collectionIdOrName;
+  const collection = await getOrCreateCollection(collectionIdOrName);
+  return collection.id;
 }
 
 function toOptionalNumber(value: unknown): number | undefined {
@@ -74,7 +112,9 @@ function normalizeResult(result: SearchResult): RetrievedChunk {
   const documentYear =
     toOptionalNumber(result.metadata?.year) ??
     extractDocumentYearFromChunkId(result.id);
-  const documentType = toOptionalString(result.metadata?.documentType);
+  const documentType =
+    toOptionalString(result.metadata?.documentType) ??
+    toOptionalString(result.metadata?.category);
   const section = toOptionalString(result.metadata?.section);
   const subsection = toOptionalString(result.metadata?.subsection);
   const confidence = Math.max(0, Math.min(1, 1 - result.distance));
@@ -106,7 +146,9 @@ function applyMetadataFilters(
   if (options.documentType) {
     const expected = options.documentType.toLowerCase().trim();
     filtered = filtered.filter((r) => {
-      const type = toOptionalString(r.metadata?.documentType);
+      const type =
+        toOptionalString(r.metadata?.documentType) ??
+        toOptionalString(r.metadata?.category);
       return Boolean(type && type.toLowerCase() === expected);
     });
   }
@@ -143,10 +185,24 @@ export async function retrieveByEmbedding(
     throw new Error("Query embedding cannot be empty");
   }
 
-  const results = await similaritySearch(collectionId, queryEmbedding, options.topK ?? 5);
+  const resolvedCollectionId = await resolveCollectionId(collectionId);
+  const requestedTopK = options.topK ?? 5;
+  const hasMetadataFilter =
+    options.year !== undefined ||
+    (typeof options.documentType === "string" &&
+      options.documentType.trim().length > 0);
+  const searchTopK = hasMetadataFilter
+    ? Math.max(requestedTopK, 400)
+    : requestedTopK;
+
+  const results = await similaritySearch(
+    resolvedCollectionId,
+    queryEmbedding,
+    searchTopK
+  );
   const filtered = applyMetadataFilters(results, options);
 
-  return filtered.map(normalizeResult);
+  return filtered.slice(0, requestedTopK).map(normalizeResult);
 }
 
 export async function retrieveByCollectionId(
