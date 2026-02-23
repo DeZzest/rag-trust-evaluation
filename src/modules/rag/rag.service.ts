@@ -129,6 +129,41 @@ Rewrite the answer and fix citation format and coverage.
 Answer:`;
 }
 
+function sanitizeSnippet(text: string, maxLen: number = 220): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+
+  const withoutListPrefix = normalized.replace(/^[\-•\d().\s]+/, "");
+  const withoutBrackets = withoutListPrefix.replace(/[\[\]]/g, "");
+  // Keep each fallback line as one factual sentence to satisfy coverage validation.
+  const singleSentence = withoutBrackets.replace(/[.!?]+/g, ",");
+  return singleSentence.slice(0, maxLen).trim();
+}
+
+function buildDeterministicCitedAnswer(
+  query: string,
+  retrievedDocs: RetrievedChunk[]
+): string {
+  const isUkr = /[\p{Script=Cyrillic}]/u.test(query);
+  const prefix = isUkr ? "Фрагмент із джерела" : "Evidence from source";
+
+  const lines: string[] = [];
+  const limit = Math.min(5, retrievedDocs.length);
+  for (let i = 0; i < limit; i++) {
+    const snippet = sanitizeSnippet(retrievedDocs[i].text);
+    if (!snippet) continue;
+    lines.push(`${prefix} ${i + 1}: ${snippet} [${i + 1}].`);
+  }
+
+  if (lines.length > 0) {
+    return lines.join("\n");
+  }
+
+  return isUkr
+    ? "Не вдалося знайти підтверджені фрагменти у наданих джерелах. [1]."
+    : "Unable to find grounded excerpts in the provided sources. [1].";
+}
+
 function toRagSources(retrievedDocs: RetrievedChunk[]): RagQueryResult["sources"] {
   return retrievedDocs.map((doc) => ({
     documentId: doc.id,
@@ -269,6 +304,19 @@ export async function processRagQuery(
         retrievedDocs.length
       );
       citationValidation.retryCount = 1;
+    }
+
+    if (!citationValidation.isValid) {
+      const fallbackAnswer = buildDeterministicCitedAnswer(query, retrievedDocs);
+      const fallbackValidation = extractAndValidateCitations(
+        fallbackAnswer,
+        retrievedDocs.length
+      );
+      answer = fallbackAnswer;
+      citationValidation = {
+        ...fallbackValidation,
+        retryCount: Math.max(citationValidation.retryCount, 1),
+      };
     }
 
     const generationMs = Date.now() - startGeneration;

@@ -109,28 +109,41 @@ const STOP_WORDS = new Set([
   "from",
   "what",
   "how",
-  "можна",
-  "треба",
-  "щодо",
-  "для",
-  "про",
-  "які",
-  "який",
-  "так",
-  "де",
-  "чи",
-  "та",
-  "і",
-  "в",
-  "на",
-  "до",
-  "з",
+  "can",
+  "does",
+  "about",
+  "need",
+  "where",
+  "which",
+  "who",
+  "when",
+  "why",
+  "\u043c\u043e\u0436\u043d\u0430",
+  "\u0442\u0440\u0435\u0431\u0430",
+  "\u0449\u043e\u0434\u043e",
+  "\u0434\u043b\u044f",
+  "\u043f\u0440\u043e",
+  "\u044f\u043a\u0456",
+  "\u044f\u043a\u0438\u0439",
+  "\u044f\u043a\u0430",
+  "\u0434\u0435",
+  "\u0447\u0438",
+  "\u0442\u0430",
+  "\u0456",
+  "\u0432",
+  "\u043d\u0430",
+  "\u0434\u043e",
+  "\u0437",
+  "\u0446\u0435",
+  "\u0449\u043e",
+  "\u044f\u043a",
 ]);
 
 function normalizeForTokens(input: string): string {
   return input
+    .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^a-zа-яіїєґ0-9\s]/gi, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -161,49 +174,84 @@ function inferPreferredCategories(queryText?: string): string[] {
   };
 
   const hasAdmissionIntent = containsAny(q, [
-    "вступ",
-    "прийом",
-    "абітур",
-    "зарахув",
+    "\u0432\u0441\u0442\u0443\u043f",
+    "\u043f\u0440\u0438\u0439\u043e\u043c",
+    "\u0430\u0431\u0456\u0442\u0443\u0440",
+    "\u0437\u0430\u0440\u0430\u0445\u0443\u0432",
     "admission",
     "applicant",
     "enroll",
+    "entrance",
   ]);
   const hasDocumentIntent = containsAny(q, [
-    "документ",
-    "довідк",
-    "сертиф",
-    "паспорт",
+    "\u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442",
+    "\u0434\u043e\u0432\u0456\u0434\u043a",
+    "\u0441\u0435\u0440\u0442\u0438\u0444",
+    "\u043f\u0430\u0441\u043f\u043e\u0440\u0442",
+    "\u0437\u0430\u044f\u0432",
     "document",
     "certificate",
     "passport",
     "required",
   ]);
-  if (hasAdmissionIntent && hasDocumentIntent) add("admission_documents");
-  if (hasAdmissionIntent) add("admission");
-  if (hasDocumentIntent && !hasAdmissionIntent) add("regulations");
+
+  if (hasAdmissionIntent) {
+    add("admission_documents");
+    add("admission");
+  }
+
+  if (hasDocumentIntent && !hasAdmissionIntent) {
+    add("admission_documents");
+    add("regulations");
+  }
+
+  if (
+    hasAdmissionIntent &&
+    containsAny(
+      q,
+      [
+        "\u0443\u043c\u043e\u0432",
+        "\u043f\u0440\u0430\u0432\u0438\u043b",
+        "conditions",
+        "requirements",
+        "rules",
+      ]
+    )
+  ) {
+    add("admission");
+  }
 
   if (
     containsAny(q, [
-      "академічн",
-      "доброчес",
+      "\u0430\u043a\u0430\u0434\u0435\u043c\u0456\u0447\u043d",
+      "\u0434\u043e\u0431\u0440\u043e\u0447\u0435\u0441",
       "plagiarism",
       "integrity",
-      "етик",
+      "\u0435\u0442\u0438\u043a",
       "cheating",
     ])
   ) {
     add("academic_integrity");
   }
 
-  if (containsAny(q, ["стипенд", "scholarship", "грант", "grant"])) {
+  if (
+    containsAny(
+      q,
+      [
+        "\u0441\u0442\u0438\u043f\u0435\u043d\u0434",
+        "scholarship",
+        "\u0433\u0440\u0430\u043d\u0442",
+        "grant",
+      ]
+    )
+  ) {
     add("scholarship");
   }
 
   if (
     containsAny(q, [
-      "матеріаль",
-      "технічн",
+      "\u043c\u0430\u0442\u0435\u0440\u0456\u0430\u043b\u044c",
+      "\u0442\u0435\u0445\u043d\u0456\u0447\u043d",
       "material base",
       "infrastructure",
       "base",
@@ -214,9 +262,9 @@ function inferPreferredCategories(queryText?: string): string[] {
 
   if (
     containsAny(q, [
-      "положен",
-      "регламент",
-      "норматив",
+      "\u043f\u043e\u043b\u043e\u0436\u0435\u043d",
+      "\u0440\u0435\u0433\u043b\u0430\u043c\u0435\u043d\u0442",
+      "\u043d\u043e\u0440\u043c\u0430\u0442\u0438\u0432",
       "rule",
       "regulation",
       "policy",
@@ -229,7 +277,7 @@ function inferPreferredCategories(queryText?: string): string[] {
 }
 
 function hasCyrillic(text: string): boolean {
-  return /[а-яіїєґ]/i.test(text);
+  return /[\p{Script=Cyrillic}]/u.test(text);
 }
 
 export function expandQueryForCorpus(query: string): string {
@@ -244,30 +292,40 @@ export function expandQueryForCorpus(query: string): string {
   };
 
   if (/(admission|applicant|enroll|entry|entrance)/.test(normalized)) {
-    addHint("вступ");
-    addHint("правила прийому");
+    addHint("\u0432\u0441\u0442\u0443\u043f");
+    addHint("\u043f\u0440\u0430\u0432\u0438\u043b\u0430 \u043f\u0440\u0438\u0439\u043e\u043c\u0443");
   }
   if (/(document|required|certificate|passport|application)/.test(normalized)) {
-    addHint("документи для вступу");
-    addHint("необхідні документи");
+    addHint(
+      "\u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0438 \u0434\u043b\u044f \u0432\u0441\u0442\u0443\u043f\u0443"
+    );
+    addHint(
+      "\u043d\u0435\u043e\u0431\u0445\u0456\u0434\u043d\u0456 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0438"
+    );
   }
   if (/(integrity|plagiarism|cheating|ethics)/.test(normalized)) {
-    addHint("академічна доброчесність");
+    addHint(
+      "\u0430\u043a\u0430\u0434\u0435\u043c\u0456\u0447\u043d\u0430 \u0434\u043e\u0431\u0440\u043e\u0447\u0435\u0441\u043d\u0456\u0441\u0442\u044c"
+    );
   }
   if (/(scholarship|grant|funding)/.test(normalized)) {
-    addHint("стипендія");
-    addHint("грант");
+    addHint("\u0441\u0442\u0438\u043f\u0435\u043d\u0434\u0456\u044f");
+    addHint("\u0433\u0440\u0430\u043d\u0442");
   }
   if (/(material base|infrastructure|facilities|campus)/.test(normalized)) {
-    addHint("матеріально-технічна база");
+    addHint(
+      "\u043c\u0430\u0442\u0435\u0440\u0456\u0430\u043b\u044c\u043d\u043e-\u0442\u0435\u0445\u043d\u0456\u0447\u043d\u0430 \u0431\u0430\u0437\u0430"
+    );
   }
   if (/(regulation|policy|normative|rules)/.test(normalized)) {
-    addHint("нормативні документи");
-    addHint("положення");
+    addHint(
+      "\u043d\u043e\u0440\u043c\u0430\u0442\u0438\u0432\u043d\u0456 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0438"
+    );
+    addHint("\u043f\u043e\u043b\u043e\u0436\u0435\u043d\u043d\u044f");
   }
 
   if (hints.length === 0) return trimmed;
-  return `${trimmed}\n\nUkrainian retrieval hints: ${hints.join("; ")}`;
+  return trimmed + "\n\nUkrainian retrieval hints: " + hints.join("; ");
 }
 
 function getResultCategory(result: SearchResult): string | undefined {
@@ -305,16 +363,50 @@ function lexicalOverlapScore(
   return overlap / queryTokenSet.size;
 }
 
+function isLowInformationChunk(text: string): boolean {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return true;
+
+  if (/^[_\-=*.\s]{4,}$/.test(normalized)) return true;
+
+  const alphaNumCount = (normalized.match(/[\p{L}\p{N}]/gu) ?? []).length;
+  if (alphaNumCount < 6) return true;
+
+  const punctuationRatio = 1 - alphaNumCount / normalized.length;
+  if (normalized.length >= 12 && punctuationRatio > 0.7) return true;
+
+  const compact = normalized.toLowerCase().replace(/\s+/g, "");
+  const uniqueCharCount = new Set(compact.split("")).size;
+  if (compact.length >= 12 && uniqueCharCount <= 2) return true;
+
+  return false;
+}
+
+function dropNoiseChunks(results: SearchResult[]): SearchResult[] {
+  const cleaned = results.filter((result) => !isLowInformationChunk(result.text));
+  return cleaned.length > 0 ? cleaned : results;
+}
+
 function rerankResults(results: SearchResult[], options: RetrievalOptions): SearchResult[] {
   const queryText = options.queryText?.trim();
   if (!queryText) return results;
 
   const queryTokens = tokenize(queryText);
   const preferredCategories = inferPreferredCategories(queryText);
+  const preferredCategorySet = new Set(
+    preferredCategories.map((category) => category.toLowerCase())
+  );
+  const hasPreferredCategories = preferredCategorySet.size > 0;
   const rankByCategory = new Map<string, number>();
   preferredCategories.forEach((category, index) => {
     rankByCategory.set(category, index);
   });
+
+  const textFrequency = new Map<string, number>();
+  for (const result of results) {
+    const key = normalizeForTokens(result.text).slice(0, 160);
+    textFrequency.set(key, (textFrequency.get(key) ?? 0) + 1);
+  }
 
   const ranked = results.map((result, index) => {
     const semantic = clamp(1 - result.distance, 0, 1);
@@ -328,7 +420,26 @@ function rerankResults(results: SearchResult[], options: RetrievalOptions): Sear
       categoryBoost = Math.max(0.14, 0.28 - categoryRank * 0.06);
     }
 
-    const score = semantic * 0.74 + lexical * 0.26 + categoryBoost;
+    const textKey = normalizeForTokens(result.text).slice(0, 160);
+    const duplicateCount = textFrequency.get(textKey) ?? 1;
+    const duplicatePenalty =
+      duplicateCount > 1 ? Math.min(0.12, (duplicateCount - 1) * 0.03) : 0;
+
+    const lowInfoPenalty = isLowInformationChunk(result.text) ? 0.25 : 0;
+
+    let offCategoryPenalty = 0;
+    if (hasPreferredCategories && category && !preferredCategorySet.has(category)) {
+      offCategoryPenalty = category === "regulations" ? 0.14 : 0.08;
+    }
+
+    const score =
+      semantic * 0.68 +
+      lexical * 0.26 +
+      categoryBoost -
+      duplicatePenalty -
+      lowInfoPenalty -
+      offCategoryPenalty;
+
     return {
       result,
       score,
@@ -346,6 +457,42 @@ function rerankResults(results: SearchResult[], options: RetrievalOptions): Sear
   });
 
   return ranked.map((item) => item.result);
+}
+
+function prioritizePreferredCategories(
+  results: SearchResult[],
+  options: RetrievalOptions
+): SearchResult[] {
+  if (
+    options.documentType &&
+    typeof options.documentType === "string" &&
+    options.documentType.trim().length > 0
+  ) {
+    return results;
+  }
+
+  const queryText = options.queryText?.trim();
+  if (!queryText) return results;
+
+  const preferredCategories = inferPreferredCategories(queryText).map((c) =>
+    c.toLowerCase()
+  );
+  if (preferredCategories.length === 0) return results;
+
+  const preferredSet = new Set(preferredCategories);
+  const preferredResults = results.filter((result) => {
+    const category = getResultCategory(result)?.toLowerCase();
+    return Boolean(category && preferredSet.has(category));
+  });
+
+  if (preferredResults.length === 0) return results;
+
+  const nonPreferredResults = results.filter((result) => {
+    const category = getResultCategory(result)?.toLowerCase();
+    return !category || !preferredSet.has(category);
+  });
+
+  return preferredResults.concat(nonPreferredResults);
 }
 
 function extractDocumentIdFromChunkId(chunkId: string): string {
@@ -450,9 +597,9 @@ export async function retrieveByEmbedding(
     typeof options.queryText === "string" &&
     options.queryText.trim().length > 0;
   const searchTopKBase = hasMetadataFilter || hasQueryText
-    ? Math.max(requestedTopK * 24, 120)
+    ? Math.max(requestedTopK * 40, 400)
     : requestedTopK;
-  const searchTopK = Math.min(searchTopKBase, 500);
+  const searchTopK = Math.min(searchTopKBase, 1000);
 
   const results = await similaritySearch(
     resolvedCollectionId,
@@ -460,9 +607,11 @@ export async function retrieveByEmbedding(
     searchTopK
   );
   const filtered = applyMetadataFilters(results, options);
-  const reranked = rerankResults(filtered, options);
+  const denoised = dropNoiseChunks(filtered);
+  const reranked = rerankResults(denoised, options);
+  const prioritized = prioritizePreferredCategories(reranked, options);
 
-  return reranked.slice(0, requestedTopK).map(normalizeResult);
+  return prioritized.slice(0, requestedTopK).map(normalizeResult);
 }
 
 export async function retrieveByCollectionId(

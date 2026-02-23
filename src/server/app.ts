@@ -14,6 +14,56 @@ const app: Application = express();
 
 app.use(express.json());
 
+type BatchDatasetItem = {
+  query: string;
+  relevantDocumentIds: string[];
+  groundTruth?: string;
+};
+
+function hasLetterOrDigit(text: string): boolean {
+  return /[\p{L}\p{N}]/u.test(text);
+}
+
+function isBatchDatasetItem(value: unknown): value is BatchDatasetItem {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.query === "string" &&
+    item.query.trim().length > 0 &&
+    Array.isArray(item.relevantDocumentIds)
+  );
+}
+
+function normalizeBatchDatasetPayload(payload: unknown): BatchDatasetItem[] | null {
+  if (Array.isArray(payload)) {
+    if (payload.every(isBatchDatasetItem)) {
+      return payload as BatchDatasetItem[];
+    }
+
+    if (
+      payload.length === 1 &&
+      payload[0] &&
+      typeof payload[0] === "object" &&
+      Array.isArray((payload[0] as Record<string, unknown>).dataset)
+    ) {
+      return normalizeBatchDatasetPayload(
+        (payload[0] as Record<string, unknown>).dataset
+      );
+    }
+
+    return null;
+  }
+
+  if (payload && typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    if (Array.isArray(obj.dataset)) {
+      return normalizeBatchDatasetPayload(obj.dataset);
+    }
+  }
+
+  return null;
+}
+
 app.get("/health", (_req: Request, res: Response) => {
   res.json({ status: "ok" });
 });
@@ -219,6 +269,14 @@ app.post("/rag/query", async (req: Request, res: Response) => {
       });
     }
 
+    if (!hasLetterOrDigit(query)) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "Field 'query' does not contain readable letters/digits. Ensure UTF-8 JSON payload (for PowerShell use UTF-8 body bytes).",
+      });
+    }
+
     if (!collectionId || typeof collectionId !== "string") {
       return res.status(400).json({
         success: false,
@@ -363,16 +421,18 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
       });
     }
 
-    if (!Array.isArray(dataset) || dataset.length === 0) {
+    const normalizedDataset = normalizeBatchDatasetPayload(dataset);
+    if (!normalizedDataset || normalizedDataset.length === 0) {
       return res.status(400).json({
         success: false,
-        error: "Field 'dataset' is required and must be a non-empty array.",
+        error:
+          "Field 'dataset' must be a non-empty array of { query, relevantDocumentIds[] } or an eval file wrapper with .dataset.",
       });
     }
 
     // Validate dataset items
-    for (let i = 0; i < dataset.length; i++) {
-      const item = dataset[i];
+    for (let i = 0; i < normalizedDataset.length; i++) {
+      const item = normalizedDataset[i];
       if (typeof item.query !== "string" || !item.query.trim()) {
         return res.status(400).json({
           success: false,
@@ -394,7 +454,7 @@ app.post("/rag/evaluate/batch", async (req: Request, res: Response) => {
 
     const result = await evaluateRagQueryBatch(
       collectionId,
-      dataset,
+      normalizedDataset,
       evaluationModel,
       generationModel,
       maxConcurrency ?? 2,
@@ -440,10 +500,12 @@ app.post("/rag/evaluate/multimodel", async (req: Request, res: Response) => {
       });
     }
 
-    if (!Array.isArray(dataset) || dataset.length === 0) {
+    const normalizedDataset = normalizeBatchDatasetPayload(dataset);
+    if (!normalizedDataset || normalizedDataset.length === 0) {
       return res.status(400).json({
         success: false,
-        error: "Field 'dataset' is required and must be a non-empty array.",
+        error:
+          "Field 'dataset' must be a non-empty array of { query, relevantDocumentIds[] } or an eval file wrapper with .dataset.",
       });
     }
 
@@ -457,7 +519,7 @@ app.post("/rag/evaluate/multimodel", async (req: Request, res: Response) => {
 
     const result = await evaluateRagQueryBatchMultiModel(
       collectionId,
-      dataset,
+      normalizedDataset,
       modelsToUse,
       maxConcurrency ?? 2
     );
