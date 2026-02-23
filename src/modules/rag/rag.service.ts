@@ -2,6 +2,7 @@ import { generate } from "../llm/ollama.service";
 import { generateEmbedding } from "../embeddings/embedding.service";
 import {
   retrieveByEmbedding,
+  expandQueryForCorpus,
   RetrievalOptions,
 } from "../vector/index_corpus";
 import { evaluateFaithfulness } from "../evaluation/faithfulness.service";
@@ -186,13 +187,15 @@ export async function processRagQuery(
       topK: options.topK,
       year: options.year,
       documentType: options.documentType,
+      queryText: query,
     };
 
     const startTotal = Date.now();
 
     console.log("Generating embedding for query...");
     const startEmbedding = Date.now();
-    const queryEmbedding = await generateEmbedding(query);
+    const embeddingQuery = expandQueryForCorpus(query);
+    const queryEmbedding = await generateEmbedding(embeddingQuery);
     const embeddingMs = Date.now() - startEmbedding;
     console.log(`Embedding generated in ${embeddingMs}ms`);
 

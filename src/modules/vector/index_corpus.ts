@@ -67,6 +67,7 @@ export interface RetrievalOptions {
   year?: number;
   documentType?: string;
   topK?: number;
+  queryText?: string;
 }
 
 function looksLikeCollectionId(value: string): boolean {
@@ -91,6 +92,260 @@ function toOptionalString(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+const STOP_WORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "are",
+  "with",
+  "that",
+  "this",
+  "from",
+  "what",
+  "how",
+  "можна",
+  "треба",
+  "щодо",
+  "для",
+  "про",
+  "які",
+  "який",
+  "так",
+  "де",
+  "чи",
+  "та",
+  "і",
+  "в",
+  "на",
+  "до",
+  "з",
+]);
+
+function normalizeForTokens(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-zа-яіїєґ0-9\s]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(input: string): string[] {
+  if (!input) return [];
+  const normalized = normalizeForTokens(input);
+  if (!normalized) return [];
+  const tokens = normalized
+    .split(" ")
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3 && !STOP_WORDS.has(t));
+  return Array.from(new Set(tokens));
+}
+
+function containsAny(normalizedText: string, terms: string[]): boolean {
+  return terms.some((term) => normalizedText.includes(term));
+}
+
+function inferPreferredCategories(queryText?: string): string[] {
+  if (!queryText) return [];
+  const q = normalizeForTokens(queryText);
+  if (!q) return [];
+
+  const categories: string[] = [];
+  const add = (category: string) => {
+    if (!categories.includes(category)) categories.push(category);
+  };
+
+  const hasAdmissionIntent = containsAny(q, [
+    "вступ",
+    "прийом",
+    "абітур",
+    "зарахув",
+    "admission",
+    "applicant",
+    "enroll",
+  ]);
+  const hasDocumentIntent = containsAny(q, [
+    "документ",
+    "довідк",
+    "сертиф",
+    "паспорт",
+    "document",
+    "certificate",
+    "passport",
+    "required",
+  ]);
+  if (hasAdmissionIntent && hasDocumentIntent) add("admission_documents");
+  if (hasAdmissionIntent) add("admission");
+  if (hasDocumentIntent && !hasAdmissionIntent) add("regulations");
+
+  if (
+    containsAny(q, [
+      "академічн",
+      "доброчес",
+      "plagiarism",
+      "integrity",
+      "етик",
+      "cheating",
+    ])
+  ) {
+    add("academic_integrity");
+  }
+
+  if (containsAny(q, ["стипенд", "scholarship", "грант", "grant"])) {
+    add("scholarship");
+  }
+
+  if (
+    containsAny(q, [
+      "матеріаль",
+      "технічн",
+      "material base",
+      "infrastructure",
+      "base",
+    ])
+  ) {
+    add("material_base");
+  }
+
+  if (
+    containsAny(q, [
+      "положен",
+      "регламент",
+      "норматив",
+      "rule",
+      "regulation",
+      "policy",
+    ])
+  ) {
+    add("regulations");
+  }
+
+  return categories;
+}
+
+function hasCyrillic(text: string): boolean {
+  return /[а-яіїєґ]/i.test(text);
+}
+
+export function expandQueryForCorpus(query: string): string {
+  const trimmed = query.trim();
+  if (!trimmed) return trimmed;
+  if (hasCyrillic(trimmed)) return trimmed;
+
+  const normalized = trimmed.toLowerCase();
+  const hints: string[] = [];
+  const addHint = (hint: string) => {
+    if (!hints.includes(hint)) hints.push(hint);
+  };
+
+  if (/(admission|applicant|enroll|entry|entrance)/.test(normalized)) {
+    addHint("вступ");
+    addHint("правила прийому");
+  }
+  if (/(document|required|certificate|passport|application)/.test(normalized)) {
+    addHint("документи для вступу");
+    addHint("необхідні документи");
+  }
+  if (/(integrity|plagiarism|cheating|ethics)/.test(normalized)) {
+    addHint("академічна доброчесність");
+  }
+  if (/(scholarship|grant|funding)/.test(normalized)) {
+    addHint("стипендія");
+    addHint("грант");
+  }
+  if (/(material base|infrastructure|facilities|campus)/.test(normalized)) {
+    addHint("матеріально-технічна база");
+  }
+  if (/(regulation|policy|normative|rules)/.test(normalized)) {
+    addHint("нормативні документи");
+    addHint("положення");
+  }
+
+  if (hints.length === 0) return trimmed;
+  return `${trimmed}\n\nUkrainian retrieval hints: ${hints.join("; ")}`;
+}
+
+function getResultCategory(result: SearchResult): string | undefined {
+  return (
+    toOptionalString(result.metadata?.category) ??
+    toOptionalString(result.metadata?.documentType)
+  );
+}
+
+function lexicalOverlapScore(
+  queryTokens: string[],
+  result: SearchResult
+): number {
+  if (queryTokens.length === 0) return 0;
+
+  const queryTokenSet = new Set(queryTokens);
+  const textSample = [
+    result.text.slice(0, 900),
+    toOptionalString(result.metadata?.title),
+    toOptionalString(result.metadata?.documentTitle),
+    toOptionalString(result.metadata?.section),
+    toOptionalString(result.metadata?.subsection),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const resultTokens = new Set(tokenize(textSample));
+  if (resultTokens.size === 0) return 0;
+
+  let overlap = 0;
+  for (const token of queryTokenSet) {
+    if (resultTokens.has(token)) overlap++;
+  }
+
+  return overlap / queryTokenSet.size;
+}
+
+function rerankResults(results: SearchResult[], options: RetrievalOptions): SearchResult[] {
+  const queryText = options.queryText?.trim();
+  if (!queryText) return results;
+
+  const queryTokens = tokenize(queryText);
+  const preferredCategories = inferPreferredCategories(queryText);
+  const rankByCategory = new Map<string, number>();
+  preferredCategories.forEach((category, index) => {
+    rankByCategory.set(category, index);
+  });
+
+  const ranked = results.map((result, index) => {
+    const semantic = clamp(1 - result.distance, 0, 1);
+    const lexical = lexicalOverlapScore(queryTokens, result);
+
+    const category = getResultCategory(result)?.toLowerCase();
+    const categoryRank =
+      category !== undefined ? rankByCategory.get(category) : undefined;
+    let categoryBoost = 0;
+    if (categoryRank !== undefined) {
+      categoryBoost = Math.max(0.14, 0.28 - categoryRank * 0.06);
+    }
+
+    const score = semantic * 0.74 + lexical * 0.26 + categoryBoost;
+    return {
+      result,
+      score,
+      fallbackDistance: result.distance,
+      originalIndex: index,
+    };
+  });
+
+  ranked.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.fallbackDistance !== b.fallbackDistance) {
+      return a.fallbackDistance - b.fallbackDistance;
+    }
+    return a.originalIndex - b.originalIndex;
+  });
+
+  return ranked.map((item) => item.result);
 }
 
 function extractDocumentIdFromChunkId(chunkId: string): string {
@@ -191,9 +446,13 @@ export async function retrieveByEmbedding(
     options.year !== undefined ||
     (typeof options.documentType === "string" &&
       options.documentType.trim().length > 0);
-  const searchTopK = hasMetadataFilter
-    ? Math.max(requestedTopK, 400)
+  const hasQueryText =
+    typeof options.queryText === "string" &&
+    options.queryText.trim().length > 0;
+  const searchTopKBase = hasMetadataFilter || hasQueryText
+    ? Math.max(requestedTopK * 24, 120)
     : requestedTopK;
+  const searchTopK = Math.min(searchTopKBase, 500);
 
   const results = await similaritySearch(
     resolvedCollectionId,
@@ -201,8 +460,9 @@ export async function retrieveByEmbedding(
     searchTopK
   );
   const filtered = applyMetadataFilters(results, options);
+  const reranked = rerankResults(filtered, options);
 
-  return filtered.slice(0, requestedTopK).map(normalizeResult);
+  return reranked.slice(0, requestedTopK).map(normalizeResult);
 }
 
 export async function retrieveByCollectionId(
@@ -210,8 +470,13 @@ export async function retrieveByCollectionId(
   query: string,
   options: RetrievalOptions = {}
 ): Promise<RetrievedChunk[]> {
-  const embedding = await generateEmbedding(query);
-  return retrieveByEmbedding(collectionId, embedding, options);
+  const embeddingQuery = expandQueryForCorpus(query);
+  const embedding = await generateEmbedding(embeddingQuery);
+  const queryAwareOptions: RetrievalOptions = {
+    ...options,
+    queryText: options.queryText ?? query,
+  };
+  return retrieveByEmbedding(collectionId, embedding, queryAwareOptions);
 }
 
 export async function retrieve(
@@ -219,7 +484,10 @@ export async function retrieve(
   options: RetrievalOptions = {}
 ): Promise<RetrievedChunk[]> {
   const collection = await getOrCreateCollection(COLLECTION_NAME);
-  return retrieveByCollectionId(collection.id, query, options);
+  return retrieveByCollectionId(collection.id, query, {
+    ...options,
+    queryText: options.queryText ?? query,
+  });
 }
 
 if (require.main === module) {
