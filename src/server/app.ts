@@ -1,4 +1,5 @@
 import express, { Application, Request, Response } from "express";
+import cors from "cors";
 import { generate } from "../modules/llm/ollama.service";
 import { generateEmbedding } from "../modules/embeddings/embedding.service";
 import {
@@ -12,6 +13,7 @@ console.log("App file loaded");
 
 const app: Application = express();
 
+app.use(cors());
 app.use(express.json());
 
 type BatchDatasetItem = {
@@ -280,7 +282,7 @@ app.post("/rag/query", async (req: Request, res: Response) => {
     if (!collectionId || typeof collectionId !== "string") {
       return res.status(400).json({
         success: false,
-        error: "Field 'collectionId' is required and must be a string.",
+        error: "Field 'collectionId' must be a string when provided.",
       });
     }
 
@@ -330,8 +332,12 @@ app.post("/rag/query", async (req: Request, res: Response) => {
     }
 
     const { processRagQuery } = await import("../modules/rag/rag.service");
+    const resolvedCollectionId =
+      typeof collectionId === "string" && collectionId.trim().length > 0
+        ? collectionId
+        : (await getOrCreateCollection(process.env.CHROMA_COLLECTION ?? "university-corpus")).id;
 
-    const result = await processRagQuery(collectionId, query, {
+    const result = await processRagQuery(resolvedCollectionId, query, {
       topK: topK ?? 3,
       year,
       documentType,
@@ -342,6 +348,15 @@ app.post("/rag/query", async (req: Request, res: Response) => {
 
     res.json({
       success: true,
+      collectionId: resolvedCollectionId,
+      trustScore: result.trust.score,
+      metrics: {
+        trustScore: result.trust.score,
+        citationCoverage: result.citationValidation.coverage,
+        citationValidity: result.citationValidation.citationValidity,
+        faithfulness: result.trust.faithfulnessScore,
+      },
+      retrieved: result.sources,
       ...result,
     });
   } catch (error) {
@@ -380,19 +395,29 @@ app.post("/rag/evaluate", async (req, res) => {
       evaluationModel,
     } = req.body;
 
-    if (!collectionId || !query || !Array.isArray(relevantDocumentIds)) {
+    if (!query || !Array.isArray(relevantDocumentIds)) {
       return res.status(400).json({
         success: false,
-        error: "collectionId, query, and relevantDocumentIds are required",
+        error: "query and relevantDocumentIds are required",
+      });
+    }
+    if (collectionId !== undefined && typeof collectionId !== "string") {
+      return res.status(400).json({
+        success: false,
+        error: "collectionId must be a string when provided",
       });
     }
 
     const { evaluateRagQuery } = await import(
       "../modules/evaluation/evaluation.service"
     );
+    const resolvedCollectionId =
+      typeof collectionId === "string" && collectionId.trim().length > 0
+        ? collectionId
+        : (await getOrCreateCollection(process.env.CHROMA_COLLECTION ?? "university-corpus")).id;
 
     const result = await evaluateRagQuery(
-      collectionId,
+      resolvedCollectionId,
       query,
       relevantDocumentIds,
       groundTruth,
@@ -400,7 +425,7 @@ app.post("/rag/evaluate", async (req, res) => {
       evaluationModel
     );
 
-    res.json({ success: true, result });
+    res.json({ success: true, collectionId: resolvedCollectionId, result });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, error: "Evaluation failed" });
