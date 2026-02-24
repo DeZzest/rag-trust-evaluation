@@ -125,7 +125,7 @@ export function QueryInput({
               onSubmit();
             }
           }}
-          placeholder="Наприклад: Які документи потрібні для вступу на магістратуру?"
+          placeholder="Example: What documents are required for admission?"
         />
       </label>
 

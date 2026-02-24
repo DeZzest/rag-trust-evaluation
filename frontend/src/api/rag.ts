@@ -18,13 +18,25 @@ const DEFAULT_COLLECTION_ID =
   import.meta.env.VITE_DEFAULT_COLLECTION?.trim() ??
   "lute_university_docs";
 
+function resolveTimeoutMs(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const DEFAULT_QUERY_TIMEOUT_MS = resolveTimeoutMs(import.meta.env.VITE_QUERY_TIMEOUT_MS, 90_000);
+
 const client = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 120_000,
+  timeout: DEFAULT_QUERY_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
   },
 });
+
+export interface QueryRagRequestOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
 
 function asObject(value: unknown): Record<string, unknown> | null {
   if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -247,6 +259,9 @@ function normalizeQueryResponse(rawData: unknown, collectionId: string): RagQuer
 
 function normalizeError(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    if (error.code === "ERR_CANCELED") {
+      return "Request canceled.";
+    }
     const data = error.response?.data;
     if (typeof data === "string" && data.trim().length > 0) {
       return data;
@@ -276,6 +291,10 @@ export function getDefaultCollectionId(): string {
   return DEFAULT_COLLECTION_ID;
 }
 
+export function getDefaultQueryTimeoutMs(): number {
+  return DEFAULT_QUERY_TIMEOUT_MS;
+}
+
 export function getCollectionSuggestions(): string[] {
   const configured = (import.meta.env.VITE_COLLECTION_IDS ?? "")
     .split(",")
@@ -294,7 +313,10 @@ export function getStrictTrustScore(score: number, coverage: number, validity: n
   return clamp01(Math.min(score, coverage, validity));
 }
 
-export async function queryRag(payload: RagQueryPayload): Promise<RagQueryResponse> {
+export async function queryRag(
+  payload: RagQueryPayload,
+  options: QueryRagRequestOptions = {}
+): Promise<RagQueryResponse> {
   const query = payload.query.trim();
   if (!query) {
     throw new Error("Field 'query' cannot be empty.");
@@ -313,7 +335,10 @@ export async function queryRag(payload: RagQueryPayload): Promise<RagQueryRespon
   };
 
   try {
-    const response = await client.post("/rag/query", requestBody);
+    const response = await client.post("/rag/query", requestBody, {
+      signal: options.signal,
+      timeout: options.timeoutMs ?? DEFAULT_QUERY_TIMEOUT_MS,
+    });
     return normalizeQueryResponse(response.data, collectionId);
   } catch (error) {
     throw new Error(normalizeError(error));

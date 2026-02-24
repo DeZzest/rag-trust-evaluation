@@ -2,6 +2,7 @@ import { RagSource } from "../types/rag.types";
 
 interface SourcesPanelProps {
   sources: RagSource[];
+  loading: boolean;
   showDebugScores: boolean;
   onToggleDebugScores: (next: boolean) => void;
 }
@@ -17,9 +18,12 @@ function shortText(text: string, max = 340): string {
 
 export function SourcesPanel({
   sources,
+  loading,
   showDebugScores,
   onToggleDebugScores,
 }: SourcesPanelProps) {
+  const sourceSkeletons = [1, 2, 3];
+
   return (
     <section className="panel">
       <div className="panel-row">
@@ -36,7 +40,17 @@ export function SourcesPanel({
         </button>
       </div>
 
-      {sources.length === 0 ? (
+      {loading ? (
+        <div className="sources-skeleton-grid">
+          {sourceSkeletons.map((skeleton) => (
+            <article key={skeleton} className="source-skeleton-card">
+              <div className="skeleton-line skeleton-title" />
+              <div className="skeleton-line" />
+              <div className="skeleton-line short" />
+            </article>
+          ))}
+        </div>
+      ) : sources.length === 0 ? (
         <p className="muted-text">No sources were returned for this query.</p>
       ) : (
         <div className="sources-stack">

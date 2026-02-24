@@ -5,9 +5,13 @@ interface AnswerCardProps {
   query: string;
   answer: string;
   citations: number[];
+  invalidCitations: number[];
   contextTrace: RagContextTraceItem[];
   showRawContext: boolean;
   onToggleRawContext: (next: boolean) => void;
+  onSaveConversation: () => void;
+  onExportTxt: () => void;
+  onExportJson: () => void;
 }
 
 type CopyState = "idle" | "copied" | "failed";
@@ -16,13 +20,52 @@ function toPercent(value: number): string {
   return `${(Math.max(0, Math.min(1, value)) * 100).toFixed(1)}%`;
 }
 
+function parseCitationToken(token: string): number | null {
+  const match = token.match(/^\[(\d+)\]$/);
+  if (!match) return null;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function renderAnswerWithHighlights(
+  answer: string,
+  citations: number[],
+  invalidCitations: number[]
+): JSX.Element[] {
+  const parts = answer.split(/(\[\d+\])/g);
+  return parts.map((part, index) => {
+    const citationNumber = parseCitationToken(part);
+    if (citationNumber === null) {
+      return <span key={`text-${index}`}>{part}</span>;
+    }
+
+    const isInvalid = invalidCitations.includes(citationNumber);
+    const isKnown = citations.includes(citationNumber);
+    const className = isInvalid
+      ? "inline-citation invalid"
+      : isKnown
+        ? "inline-citation valid"
+        : "inline-citation";
+
+    return (
+      <mark key={`cite-${index}`} className={className}>
+        {part}
+      </mark>
+    );
+  });
+}
+
 export function AnswerCard({
   query,
   answer,
   citations,
+  invalidCitations,
   contextTrace,
   showRawContext,
   onToggleRawContext,
+  onSaveConversation,
+  onExportTxt,
+  onExportJson,
 }: AnswerCardProps) {
   const [copyState, setCopyState] = useState<CopyState>("idle");
 
@@ -46,6 +89,15 @@ export function AnswerCard({
         </div>
 
         <div className="inline-actions">
+          <button type="button" className="secondary-btn" onClick={onSaveConversation}>
+            Save conversation
+          </button>
+          <button type="button" className="secondary-btn" onClick={onExportTxt}>
+            Export TXT
+          </button>
+          <button type="button" className="secondary-btn" onClick={onExportJson}>
+            Export JSON
+          </button>
           <button type="button" className="secondary-btn" onClick={handleCopy}>
             {copyState === "idle" && "Copy answer"}
             {copyState === "copied" && "Copied"}
@@ -62,7 +114,11 @@ export function AnswerCard({
         </div>
       </div>
 
-      <p className="answer-text">{answer || "No answer generated."}</p>
+      <div className="answer-text">
+        {answer
+          ? renderAnswerWithHighlights(answer, citations, invalidCitations)
+          : "No answer generated."}
+      </div>
 
       <p className="muted-text">
         <strong>Query:</strong> {query || "n/a"}

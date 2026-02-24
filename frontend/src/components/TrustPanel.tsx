@@ -25,6 +25,7 @@ export function TrustPanel({
   onViewModeChange,
 }: TrustPanelProps) {
   const tone = scoreTone(displayedScore);
+  const breakdown = trust.breakdown;
 
   return (
     <section className="panel">
@@ -76,6 +77,33 @@ export function TrustPanel({
         <div className="metric-card">
           <span className="metric-label">Validation</span>
           <span className="metric-value">{citationValidation.isValid ? "Valid" : "Warnings"}</span>
+        </div>
+      </div>
+
+      <div className="breakdown-grid">
+        <div className="metric-card">
+          <span className="metric-label">Faithfulness</span>
+          <span className="metric-value">
+            {trust.faithfulnessScore !== undefined ? toPercent(trust.faithfulnessScore) : "n/a"}
+          </span>
+        </div>
+        <div className="metric-card">
+          <span className="metric-label">Retrieval quality</span>
+          <span className="metric-value">
+            {breakdown?.retrievalQuality !== undefined ? toPercent(breakdown.retrievalQuality) : "n/a"}
+          </span>
+        </div>
+        <div className="metric-card">
+          <span className="metric-label">Precision@K</span>
+          <span className="metric-value">
+            {breakdown?.precisionAtK !== undefined ? toPercent(breakdown.precisionAtK) : "n/a"}
+          </span>
+        </div>
+        <div className="metric-card">
+          <span className="metric-label">Citation cap</span>
+          <span className="metric-value">
+            {breakdown?.cappedByCitationPolicy ? "Applied" : "Not applied"}
+          </span>
         </div>
       </div>
 

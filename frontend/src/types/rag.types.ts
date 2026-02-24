@@ -1,6 +1,7 @@
 export type Primitive = string | number | boolean;
 export type TrustMode = "lightweight" | "full";
 export type TrustViewMode = "backend" | "strict";
+export type ThemeMode = "light" | "dark";
 
 export interface QueryInputValues {
   query: string;
@@ -98,4 +99,22 @@ export interface RagQueryResponse {
   trust: TrustResult;
   performance: PerformanceMetrics;
   raw: unknown;
+}
+
+export interface StoredRagResult {
+  answer: string;
+  citations: number[];
+  collectionId: string;
+  retrieved: RagSource[];
+  contextTrace: RagContextTraceItem[];
+  citationValidation: CitationValidation;
+  trust: TrustResult;
+  performance: PerformanceMetrics;
+}
+
+export interface SavedConversation {
+  id: string;
+  createdAt: string;
+  payload: RagQueryPayload;
+  result: StoredRagResult;
 }
