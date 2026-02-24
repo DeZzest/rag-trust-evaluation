@@ -16,7 +16,14 @@ function normalizeRetrievedDocumentId(doc: SearchResult): string {
       metadataYear !== undefined && metadataYear !== null
         ? String(metadataYear).trim()
         : "";
-    return year.length > 0 ? `${base}_${year}` : base;
+    if (year.length > 0) {
+      const yearToken = `_${year}`;
+      if (base.endsWith(yearToken) || base.includes(`${yearToken}_`)) {
+        return base;
+      }
+      return `${base}_${year}`;
+    }
+    return base;
   }
 
   const fallbackId = doc.id.trim().toLowerCase();

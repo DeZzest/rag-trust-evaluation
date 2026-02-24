@@ -7,8 +7,11 @@ data/ingested_corpus.jsonl
 data/benchmarks.json
 data/chroma/
 data/vector_store/
+data/raw_html/
+data/raw_pdf/
+data/scrape_manifest.json
 
-!data/university_corpus/
+data/university_corpus/
 
 # Logs
 logs

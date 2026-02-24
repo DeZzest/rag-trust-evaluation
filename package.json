@@ -5,15 +5,20 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
+    "scrape:lute": "ts-node src/modules/scraper/scrape.service.ts",
     "ingest:corpus": "ts-node src/modules/ingest/ingest_corpus.ts",
     "index:corpus": "ts-node src/modules/vector/index_corpus.ts",
     "test:phase3": "ts-node src/tests/phase3.checks.ts"
   },
   "dependencies": {
+    "axios": "^1.13.2",
+    "cheerio": "^1.1.2",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "node-fetch": "^2.7.0"
+    "iconv-lite": "^0.7.0",
+    "node-fetch": "^2.7.0",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
@@ -21,6 +26,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^25.2.3",
     "@types/node-fetch": "^2.6.13",
+    "@types/pdf-parse": "^1.1.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
