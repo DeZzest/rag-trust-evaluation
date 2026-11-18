@@ -180,6 +180,53 @@ export async function getOrCreateCollection(
 }
 
 /**
+ * Strict create-only path for an immutable reviewed snapshot.
+ * Unlike getOrCreateCollection(), this MUST fail if the name already exists.
+ * Never return an existing collection or mutate the legacy active index.
+ */
+export async function createExclusiveSnapshotCollection(
+  collectionName: string
+): Promise<CollectionInfo> {
+  if (!/^rag_snapshot_[a-f0-9]{64}$/.test(collectionName)) {
+    throw new Error("Snapshot collection name must be rag_snapshot_<64-hex>");
+  }
+  const listResponse = await fetch(CHROMA_API_BASE + "/collections");
+  if (!listResponse.ok) {
+    throw new Error("Cannot check whether snapshot collection exists: " +
+      (await listResponse.text()));
+  }
+  const json: any = await listResponse.json();
+  const collections: any[] = Array.isArray(json) ? json : (json.collections ?? []);
+  if (!Array.isArray(collections)) {
+    throw new Error("Chroma returned an invalid collection listing");
+  }
+  if (collections.some(item => item && item.name === collectionName)) {
+    throw new Error("Snapshot collection already exists: " + collectionName +
+      ". Do not reuse or overwrite it.");
+  }
+  // Server-side get_or_create:false is essential even if our preflight misses a race.
+  const result = await fetch(CHROMA_API_BASE + "/collections", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: collectionName,
+      get_or_create: false,
+      metadata: { "hnsw:space": "cosine" },
+    }),
+  });
+  if (!result.ok) {
+    throw new Error("Exclusive snapshot collection creation failed (no reuse): " +
+      (await result.text()));
+  }
+  const created = await result.json() as { id?: unknown; name?: unknown };
+  if (typeof created.id !== "string" || created.name !== collectionName) {
+    throw new Error("Chroma returned an unexpected collection identity; inspect manually");
+  }
+  collectionCache.set(collectionName, created.id);
+  return { id: created.id, name: collectionName };
+}
+
+/**
  * Add documents with embeddings to a collection (Chroma v2)
  * @param collectionId - ID of the collection
  * @param documents - Array of documents with embeddings
