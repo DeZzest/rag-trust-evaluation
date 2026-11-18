@@ -25,3 +25,7 @@
 ## Обмеження
 
 Підсумковий Trust Score без еталона і з еталоном мають різну множину компонентів, тому не слід без додаткового калібрування інтерпретувати їх як прямо порівнювані. До кінцевого ТЗ додати явне розмежування reference-based та reference-free експериментів. Наскрізну роботу потребує перевірити з Ollama/ChromaDB.
+
+## CI verification safeguard
+
+To address the missing automatic checks found after PR #15, this package also adds a minimal GitHub Actions workflow on pull requests and pushes to `main`: backend dependency installation, existing `test:phase3` regression tests, TypeScript typecheck, and frontend build. CI run outcome is reported separately and is not assumed successful solely because the workflow file exists.
