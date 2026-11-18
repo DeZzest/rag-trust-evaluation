@@ -13,6 +13,11 @@ data/scrape_manifest.json
 
 data/university_corpus/
 
+# Locally prepared or reviewed annotation data (potentially sensitive)
+data/benchmark/annotation-queue*.json
+data/benchmark/*-annotations*.json
+data/benchmark/gold*.json
+
 # Logs
 logs
 *.log
