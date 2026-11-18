@@ -48,3 +48,17 @@ npm run benchmark:validate -- data/benchmark/gold-v1.json
 ```
 
 CLI не перезаписує вихідні дані або наявний gold. Звіт містить спостережувану згоду анотаторів, очікувану випадкову згоду та коефіцієнт Коена κ **до** погодження. Якщо κ невизначено, відображається `null`. Ідентифікатори та примітки версійності не замінюють людську перевірку незалежності й чинності джерел. `annotation-review*.json` і `gold*.json` не повинні потрапляти у публічний Git.
+
+## Офлайнове порівняння з gold (пакет 7)
+
+Після створення та незалежного погодження `gold-v1.json` сформуйте файл `claim-predictions/1`, у якому кожен прогноз зіставлений з еталонним `caseId` та `claimId`. Основні поля: `schemaVersion`, `datasetId`, `corpusSnapshotId`, `runId`, `methodId`, `modelId`, `evaluationMode`, `configuration` і масив `predictions` з трійками `caseId`, `claimId`, `verdict`.
+
+`evaluationMode` приймає `gold_claim_classification` (класифікація готових еталонних тверджень) або `aligned_rag_claims` (окремо узгоджені твердження з RAG-відповідей). Ці режими **не однакові** й потребують окремої інтерпретації.
+
+```bash
+npm run benchmark:score -- data/benchmark/gold-v1.json data/benchmark/model-predictions.json data/benchmark/model-report.json
+```
+
+Звіт містить загальні метрики та окремі результати для `dev` і `test`, а також SHA-256 обох точних вхідних файлів. Невідомі, відсутні або повторені `caseId + claimId` відхиляються. CLI не перезаписує існуючі результати. Порожній split повертається як `null`.
+
+`benchmark:score` не викликає LLM і **не створює прогнози**. Синтетичні unit-тести не є експериментальними результатами.
