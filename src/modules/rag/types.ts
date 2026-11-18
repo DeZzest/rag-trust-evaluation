@@ -55,6 +55,7 @@ export interface TrustBreakdown {
   faithfulnessScore?: number;
   precisionAtK?: number;
   answerSimilarityToGroundTruth?: number;
+  referenceAvailable?: boolean;
   baseScore?: number;
   citationScore?: number;
   semanticCompensationApplied?: boolean;
