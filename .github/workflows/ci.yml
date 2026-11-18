@@ -39,6 +39,8 @@ jobs:
         run: npm run test:snapshot-query
       - name: Audit complete Chroma snapshot consistency (synthetic only)
         run: npm run test:snapshot-audit
+      - name: Verify embedding tag binding for snapshot collections (synthetic only)
+        run: npm run test:embedding-pin
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
       - name: Build frontend
