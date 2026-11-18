@@ -421,6 +421,12 @@ app.post("/rag/query", async (req: Request, res: Response) => {
         citationCoverage: result.citationValidation.coverage,
         citationValidity: result.citationValidation.citationValidity,
         faithfulness: result.trust.faithfulnessScore,
+        ...(result.trust.claimAware !== undefined
+          ? {
+              claimAwareTrustScore: result.trust.claimAware.score,
+              claimAwareStatus: result.trust.claimAware.status,
+            }
+          : {}),
       },
       retrieved: result.sources,
       ...result,
