@@ -18,6 +18,8 @@ data/benchmark/annotation-queue*.json
 data/benchmark/annotation-review*.json
 data/benchmark/*-annotations*.json
 data/benchmark/gold*.json
+data/benchmark/*-predictions*.json
+data/benchmark/*-report*.json
 
 # Logs
 logs
