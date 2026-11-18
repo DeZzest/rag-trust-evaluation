@@ -115,6 +115,45 @@ function testBadInputs(): void {
   assert.throws(() => prepareAnnotationQueue(corpus, JSON.stringify(dup)), /duplicate case ID/);
 }
 
+
+function testReviewedSnapshotIdentity(): void {
+  const id = "sha256:" + "a".repeat(64);
+  const otherId = "sha256:" + "b".repeat(64);
+  const originalRows = syntheticCorpus().trim().split("\n").map(row => JSON.parse(row));
+  const encoded = (rows: unknown[]) => rows.map(row => JSON.stringify(row)).join("\n") + "\n";
+  const tagged = originalRows.map(row => ({
+    ...row,
+    metadata: { ...row.metadata, corpusSnapshotId: id },
+  }));
+  const queue = prepareAnnotationQueue(encoded(tagged), syntheticQueries());
+  assert.equal(queue.corpusSnapshotId, id);
+  assert.notEqual(queue.ingestedSha256, id.slice("sha256:".length));
+  assert.equal(queue.cases.length, 3);
+  assert.ok(queue.cases[0].candidateSources.length > 0);
+  assert.equal(queue.cases[0].status, "needs_manual_annotation");
+
+  const mixed = tagged.map(row => ({
+    ...row,
+    metadata: { ...row.metadata },
+  }));
+  mixed[1].metadata.corpusSnapshotId = otherId;
+  assert.throws(
+    () => prepareAnnotationQueue(encoded(mixed), syntheticQueries()),
+    /mixes different or untagged/
+  );
+  delete mixed[1].metadata.corpusSnapshotId;
+  assert.throws(
+    () => prepareAnnotationQueue(encoded(mixed), syntheticQueries()),
+    /mixes different or untagged/
+  );
+  mixed[1].metadata.corpusSnapshotId = "invalid-snapshot-id";
+  assert.throws(
+    () => prepareAnnotationQueue(encoded(mixed), syntheticQueries()),
+    /invalid corpusSnapshotId/
+  );
+}
+
 testCandidateGeneration();
 testBadInputs();
+testReviewedSnapshotIdentity();
 console.log("Annotation queue offline checks passed (synthetic fixtures only).");
