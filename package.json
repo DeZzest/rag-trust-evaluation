@@ -26,7 +26,8 @@
     "test:snapshot-query": "ts-node src/tests/snapshot.query.checks.ts",
     "corpus:audit-index": "ts-node src/modules/vector/snapshot.audit.cli.ts",
     "test:snapshot-audit": "ts-node src/tests/snapshot.audit.checks.ts",
-    "test:embedding-pin": "ts-node src/tests/embedding.identity.checks.ts"
+    "test:embedding-pin": "ts-node src/tests/embedding.identity.checks.ts",
+    "test:claim-aware": "ts-node src/tests/claim.aware.score.checks.ts"
   },
   "dependencies": {
     "axios": "^1.13.2",
