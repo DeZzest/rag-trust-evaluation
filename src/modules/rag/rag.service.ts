@@ -14,6 +14,7 @@ import {
 import { buildContext, buildContextTrace } from "./context.builder";
 import { extractAndValidateCitations } from "./citation.extractor";
 import { calculateTrustScore } from "./trust.score";
+import { calculateClaimAwareTrust, unavailableClaimAwareTrust, ClaimAwareTrustComparison } from "./claim.aware.score";
 import { assertSnapshotEvidence } from "./snapshot.provenance";
 import {
   CitationValidationResult,
@@ -41,6 +42,8 @@ export interface RagQueryResult {
     mode: "lightweight" | "full";
     breakdown: TrustBreakdown;
     faithfulnessScore?: number;
+    /** Paired experimental score; baseline trust.score is never overwritten. */
+    claimAware?: ClaimAwareTrustComparison;
   };
   performance: {
     embeddingMs: number;
@@ -282,6 +285,9 @@ export async function processRagQuery(
             ...zeroTrust,
             score: 0,
           },
+          claimAware: options.includeClaimGrounding
+            ? unavailableClaimAwareTrust(0, "no_sources_retrieved")
+            : undefined,
         },
         performance: {
           embeddingMs,
@@ -377,6 +383,22 @@ export async function processRagQuery(
       }
     }
 
+    let claimAware: ClaimAwareTrustComparison | undefined;
+    if (options.includeClaimGrounding) {
+      try {
+        claimAware = calculateClaimAwareTrust(
+          trustBreakdown.score,
+          claimGrounding ?? unavailableClaimGrounding("claim_grounding_missing")
+        );
+      } catch (error) {
+        // Never turn a judge failure into a made-up score.
+        claimAware = unavailableClaimAwareTrust(
+          trustBreakdown.score,
+          error instanceof Error ? error.message : "invalid_claim_grounding"
+        );
+      }
+    }
+
     const totalMs = Date.now() - startTotal;
 
     const result: RagQueryResult = {
@@ -391,6 +413,7 @@ export async function processRagQuery(
         mode: trustBreakdown.mode,
         breakdown: trustBreakdown,
         faithfulnessScore,
+        claimAware,
       },
       performance: {
         embeddingMs,
