@@ -141,7 +141,7 @@ function testReviewedSnapshotIdentity(): void {
     () => prepareAnnotationQueue(encoded(mixed), syntheticQueries()),
     /mixes different or untagged/
   );
-  delete mixed[1].metadata.corpusSnapshotId;
+  delete (mixed[1].metadata as { corpusSnapshotId?: string }).corpusSnapshotId;
   assert.throws(
     () => prepareAnnotationQueue(encoded(mixed), syntheticQueries()),
     /mixes different or untagged/
