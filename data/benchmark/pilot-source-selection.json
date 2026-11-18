@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "pilot-source-selection/1",
+  "status": "human_review_pending",
+  "purpose": "Small real-document pilot; NOT verified corpus, gold labels, or current legal edition",
+  "sourceManifestSha256": "f47478f5238e98673a5bd5ef4d36490957c2eb4379fe5fd905f6c5d040efbe2a",
+  "rawPdfArchiveSha256": "b7e89fa03d0f78131f8f67e2f8c9a656ec2e682da52cc810483247731a07e0fb",
+  "totalDocuments": 3,
+  "totalPhysicalPdfPages": 28,
+  "documents": [
+    {
+      "documentId": "lute_regulations_2026_pdf_7",
+      "sourceManifestTitle": "Мова освітнього процесу",
+      "visiblePdfTitle": "Мова освітнього процесу",
+      "sourceUrl": "https://www.lute.lviv.ua/fileadmin/www.lac.lviv.ua/data/Academy/Docs/MovaVuklad.pdf",
+      "cachedPdfFilename": "movavuklad_384ea4eb86823c.pdf",
+      "sourcePdfSha256": "bb66e1d6608569e65b482e00d430e7f264b4213d559ada516577c31f60ac9fd2",
+      "pageCount": 2,
+      "extractionObservation": "native_text_present",
+      "visiblePrintedYearHint": null,
+      "verifiedDocumentYear": null,
+      "documentVersion": null,
+      "reviewStatus": "needs_human_review"
+    },
+    {
+      "documentId": "lute_regulations_2026_pdf_11",
+      "sourceManifestTitle": "Положення про робочі групи з розроблення і супроводження освітніх програм у Львівському торговельно-економічному університеті",
+      "visiblePdfTitle": "Про робочі групи з розроблення і супроводження освітніх програм у ЛТЕУ",
+      "sourceUrl": "https://www.lute.lviv.ua/fileadmin/www.lac.lviv.ua/data/Academy/Docs/Polozhennja_New/Polog_Proektni_grypu.PDF",
+      "cachedPdfFilename": "polog_proektni_grypu_31ce9fbe63ce30.pdf",
+      "sourcePdfSha256": "a5edfb10973973e14356f578272d770a22e80e2b92041e26442e648ab40a4017",
+      "pageCount": 9,
+      "extractionObservation": "native_text_present_on_most_pages; scan/blank first page requires inspection",
+      "visiblePrintedYearHint": 2022,
+      "verifiedDocumentYear": null,
+      "documentVersion": null,
+      "reviewStatus": "needs_human_review"
+    },
+    {
+      "documentId": "lute_regulations_2026_pdf_17",
+      "sourceManifestTitle": "Міністерство освіти і науки України",
+      "visiblePdfTitle": "Про організацію методичної роботи у ЛТЕУ",
+      "sourceUrl": "https://www.lute.lviv.ua/fileadmin/www.lac.lviv.ua/data/Academy/Docs/Polozhennja_New/20_Polozhennja_pro_organizaciju_metodichnoji_roboti_v_LTEU.pdf",
+      "cachedPdfFilename": "20_polozhennja_pro_organizaciju_metodichnoji_roboti_v_lteu_040ddf173d6da8.pdf",
+      "sourcePdfSha256": "3ded6e719418a345cece260a084062db597238a3d479d5039ed3607971cf6478",
+      "pageCount": 17,
+      "extractionObservation": "native_text_present_on_most_pages; scan/blank first page requires inspection",
+      "visiblePrintedYearHint": 2023,
+      "verifiedDocumentYear": null,
+      "documentVersion": null,
+      "reviewStatus": "needs_human_review",
+      "caution": "Manifest title differs from printed document title; verify before gold/ingestion"
+    }
+  ],
+  "limitations": [
+    "SHA-256 authenticates supplied file bytes only, not official-current edition",
+    "visiblePrintedYearHint is a text clue, not normative validity",
+    "all pages need manual comparison with PDF before approved export",
+    "selection contains 3 of 21 archived PDFs, not complete source manifest"
+  ]
+}
