@@ -161,3 +161,8 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Unverified page-level OCR candidates, human annotations, and revised corpora
+data/ocr_staging/
+data/ocr_review/
+data/university_corpus_ocr_*/
