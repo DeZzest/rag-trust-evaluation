@@ -378,6 +378,87 @@ export async function similaritySearch(
 }
 
 /**
+ * Read-only complete collection scan for a reviewed snapshot audit.
+ * Chroma v2 /get supports offset, limit and explicit include fields.
+ * This method does not create, modify, or cache collections.
+ */
+export interface SnapshotStoredRecord {
+  id: string;
+  text: string;
+  metadata: Record<string, string | number | boolean>;
+  embedding: number[];
+}
+
+export async function getSnapshotRecordsPage(
+  collectionId: string,
+  offset: number,
+  limit: number
+): Promise<SnapshotStoredRecord[]> {
+  if (!collectionId.trim() ||
+      !Number.isInteger(offset) || offset < 0 ||
+      !Number.isInteger(limit) || limit < 1 || limit > 50) {
+    throw new Error("Invalid read-only Chroma snapshot page request");
+  }
+  const response = await fetch(
+    CHROMA_API_BASE + "/collections/" + encodeURIComponent(collectionId) + "/get",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        offset,
+        limit,
+        include: ["documents", "metadatas", "embeddings"],
+      }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error("Chroma read-only snapshot get failed: HTTP " + response.status);
+  }
+  const value: unknown = await response.json();
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("Invalid Chroma get response");
+  }
+  const body = value as Record<string, unknown>;
+  if (!Array.isArray(body.ids) ||
+      !Array.isArray(body.documents) ||
+      !Array.isArray(body.metadatas) ||
+      !Array.isArray(body.embeddings) ||
+      body.ids.length !== body.documents.length ||
+      body.ids.length !== body.metadatas.length ||
+      body.ids.length !== body.embeddings.length ||
+      body.ids.length > limit) {
+    throw new Error("Malformed or incomplete Chroma get arrays");
+  }
+  return body.ids.map((value, index) => {
+    const text = (body.documents as unknown[])[index];
+    const metadata = (body.metadatas as unknown[])[index];
+    const embedding = (body.embeddings as unknown[])[index];
+    if (typeof value !== "string" || !value.trim() ||
+        typeof text !== "string" ||
+        !metadata || typeof metadata !== "object" || Array.isArray(metadata) ||
+        !Array.isArray(embedding)) {
+      throw new Error("Invalid Chroma record on page at offset " + offset);
+    }
+    const entries = Object.entries(metadata as Record<string, unknown>);
+    if (entries.some(([, x]) => (
+      !(typeof x === "string" || typeof x === "boolean" ||
+        (typeof x === "number" && Number.isFinite(x)))
+    ))) {
+      throw new Error("Invalid Chroma metadata on page at offset " + offset);
+    }
+    if (!embedding.every(x => typeof x === "number" && Number.isFinite(x))) {
+      throw new Error("Invalid Chroma embedding on page at offset " + offset);
+    }
+    return {
+      id: value,
+      text,
+      metadata: metadata as Record<string, string | number | boolean>,
+      embedding: embedding as number[],
+    };
+  });
+}
+
+/**
  * Delete a document from a collection (Chroma v2)
  * @param collectionId - ID of the collection
  * @param documentId - ID of the document to delete
