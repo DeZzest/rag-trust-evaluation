@@ -227,6 +227,35 @@ export async function createExclusiveSnapshotCollection(
 }
 
 /**
+ * Read-only exact lookup for an already indexed, approved snapshot.
+ * NEVER creates a collection, never uses the potentially stale name cache.
+ */
+export async function getExistingSnapshotCollection(
+  collectionName: string
+): Promise<CollectionInfo> {
+  if (!/^rag_snapshot_[a-f0-9]{64}$/.test(collectionName)) {
+    throw new Error("Invalid snapshot collection name");
+  }
+  const response = await fetch(CHROMA_API_BASE + "/collections");
+  if (!response.ok) {
+    throw new Error("Unable to list snapshot collections: " + response.status);
+  }
+  const raw: any = await response.json();
+  const collections: any[] = Array.isArray(raw) ? raw : raw?.collections;
+  if (!Array.isArray(collections)) {
+    throw new Error("Unexpected Chroma collection listing");
+  }
+  const matches = collections.filter(
+    entry => entry && entry.name === collectionName &&
+      typeof entry.id === "string" && entry.id.length > 0
+  );
+  if (matches.length !== 1) {
+    throw new Error("Approved snapshot collection missing or ambiguous; no collection created");
+  }
+  return { name: collectionName, id: matches[0].id };
+}
+
+/**
  * Add documents with embeddings to a collection (Chroma v2)
  * @param collectionId - ID of the collection
  * @param documents - Array of documents with embeddings
