@@ -149,11 +149,57 @@ function testDocumentLevelRetrievalMetrics() {
   approxEqual(empty.averageSimilarity, 0);
 }
 
+function testRecallWithDuplicateChunks() {
+  const retrievedDocs: SearchResult[] = [
+    {
+      id: "admission_rules_2024_3.1",
+      text: "Required document A.",
+      distance: 0.1,
+      metadata: { documentId: "admission_rules", year: 2024 },
+    },
+    {
+      id: "admission_rules_2024_3.2",
+      text: "Required document B.",
+      distance: 0.2,
+      metadata: { documentId: "admission_rules", year: 2024 },
+    },
+  ];
+
+  // Both chunks belong to one unique relevant document. A duplicate
+  // must not produce recall=2 when there is only one ground-truth document.
+  const oneRelevant = calculateRetrievalMetrics(retrievedDocs, [
+    "admission_rules_2024.txt",
+  ]);
+  approxEqual(oneRelevant.precisionAtK, 1);
+  approxEqual(oneRelevant.recallAtK, 1);
+
+  // One relevant document out of two: recall must be 0.5 even when
+  // multiple chunks of the found document occupy the retrieved list.
+  const twoRelevant = calculateRetrievalMetrics(retrievedDocs, [
+    "admission_rules_2024.txt",
+    "exam_retake_policy.txt",
+  ]);
+  approxEqual(twoRelevant.precisionAtK, 1);
+  approxEqual(twoRelevant.recallAtK, 0.5);
+
+  // Duplicate ground-truth IDs must not alter recall.
+  const duplicatedGroundTruth = calculateRetrievalMetrics(retrievedDocs, [
+    "admission_rules_2024.txt",
+    "admission_rules_2024.txt",
+  ]);
+  approxEqual(duplicatedGroundTruth.recallAtK, 1);
+
+  // With no annotated relevant documents, the defined recall fallback is 0.
+  const emptyGroundTruth = calculateRetrievalMetrics(retrievedDocs, []);
+  approxEqual(emptyGroundTruth.recallAtK, 0);
+}
+
 function run() {
   testContextBuilder();
   testCitationExtraction();
   testTrustScore();
   testDocumentLevelRetrievalMetrics();
+  testRecallWithDuplicateChunks();
   console.log("Phase 3 checks passed.");
 }
 
