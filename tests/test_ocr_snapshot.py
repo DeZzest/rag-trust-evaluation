@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import ocr_review_export as exporter
 import ocr_stage
 import assemble_reviewed_snapshot as snapshot
+import verify_reviewed_snapshot as verifier
 
 
 def h(data: bytes) -> str:
@@ -227,6 +228,46 @@ class CorpusSnapshotTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "at least one"):
                 snapshot.prepare_snapshot(manifest, w.raw_pdf, [])
+
+
+    def test_snapshot_verification_and_tampering(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            w = SyntheticWorkspace(Path(tmp))
+            folder, _, _ = w.add_document("fictional_pdf_1")
+            data, manifest = snapshot.prepare_snapshot(w.manifest_bytes(), w.raw_pdf, [folder])
+            output = Path(tmp) / "corpus_snapshots" / "v1"
+            snapshot.export_snapshot(output, data, manifest)
+            report = verifier.verify_snapshot_directory(output)
+            self.assertTrue(report["valid"])
+            self.assertEqual(report["documentCount"], 1)
+            self.assertEqual(report["chunkCount"], 1)
+            self.assertEqual(report["corpusSnapshotId"], json.loads(manifest)["corpusSnapshotId"])
+
+            jsonl_file = output / "ingested_corpus.jsonl"
+            jsonl_file.write_bytes(data + b"{}\n")
+            with self.assertRaisesRegex(ValueError, "JSONL SHA-256 mismatch"):
+                verifier.verify_snapshot_directory(output)
+            jsonl_file.write_bytes(data)
+
+            manifest_file = output / "snapshot_manifest.json"
+            bad = json.loads(manifest)
+            bad["corpusSnapshotId"] = "sha256:" + "0" * 64
+            manifest_file.write_text(json.dumps(bad))
+            with self.assertRaisesRegex(ValueError, "snapshot ID mismatch"):
+                verifier.verify_snapshot_directory(output)
+            manifest_file.write_bytes(manifest)
+
+            bad = json.loads(manifest)
+            bad["completeForPdfManifest"] = True if bad["missingPdfDocumentIds"] else False
+            manifest_file.write_text(json.dumps(bad))
+            with self.assertRaisesRegex(ValueError, "completeness flag"):
+                verifier.verify_snapshot_directory(output)
+            manifest_file.write_bytes(manifest)
+
+            (output / "unexpected.txt").write_text("unauthorized")
+            with self.assertRaisesRegex(ValueError, "expected only"):
+                verifier.verify_snapshot_directory(output)
+
 
 
 if __name__ == "__main__":
