@@ -63,8 +63,9 @@ export function calculateTrustScore(input: TrustScoreInput): TrustBreakdown {
   }
 
   const weights = input.weights ?? TRUST_WEIGHTS;
-  const referenceAvailable = input.answerSimilarityToGroundTruth !== undefined;
-  if (referenceAvailable && !Number.isFinite(input.answerSimilarityToGroundTruth)) {
+  const suppliedSimilarity = input.answerSimilarityToGroundTruth;
+  const referenceAvailable = suppliedSimilarity !== undefined;
+  if (referenceAvailable && !Number.isFinite(suppliedSimilarity)) {
     throw new Error("Invalid answer similarity measurement");
   }
   const similarity = referenceAvailable
