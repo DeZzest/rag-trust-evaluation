@@ -18,7 +18,9 @@
     "ocr:stage": "python scripts/ocr_stage.py",
     "test:ocr": "python -m unittest discover -s tests -p 'test_ocr_*.py'",
     "ocr:review-template": "python scripts/ocr_review_template.py",
-    "ocr:review-export": "python scripts/ocr_review_export.py"
+    "ocr:review-export": "python scripts/ocr_review_export.py",
+    "corpus:snapshot": "python scripts/assemble_reviewed_snapshot.py",
+    "corpus:verify": "python scripts/verify_reviewed_snapshot.py"
   },
   "dependencies": {
     "axios": "^1.13.2",
