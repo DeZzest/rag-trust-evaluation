@@ -1,0 +1,31 @@
+# Пакет 2 — AUD-04 та AUD-06: коректність оцінювання
+
+- Базовий commit: `909a901aa31819c15e3d3e7dcf4d3c208101dedf` (`main`, merge PR #15).
+- Робоча гілка: `fix/evaluation-invalid-scores`.
+- Мета: не підміняти відсутній результат оцінювання числом, яке виглядає як фактичне вимірювання.
+- Обмеження: **не** впроваджувати новий науковий Trust Score, NLI/claim verification чи нові експериментальні результати.
+
+## Заплановані зміни
+
+1. `faithfulness.service.ts`: виділити тестовану функцію перевірки JSON відповіді LLM-судді. Приймати тільки числову оцінку в діапазоні [0,1]; при помилці JSON, відсутньому полі, невірному типі чи значенні поза діапазоном викидати явну помилку. Не витягувати випадкові числа з тексту та не повертати 0.5.
+2. `evaluation.service.ts`: коли `groundTruth` не заданий, не обчислювати й не вигадувати схожість. Якщо отримане число non-finite, завершити оцінювання помилкою. Не видавати `answer_quality_issue` лише через відсутність еталона. Підняти `EVALUATION_VERSION` через зміну семантики.
+3. `trust.score.ts`: за відсутності еталона рахувати `baseScore` як зважене середнє **доступних** компонентів faithfulness/precision, нормалізуючи ваги без `similarity`. За наявності еталона зберігати стару формулу. Вказувати `referenceAvailable` у breakdown для чіткого розрізнення режимів. Non-finite задану схожість відхиляти.
+4. `src/tests/phase3.checks.ts`: додати тести валідного/невалідного виводу LLM-судді, наявності та відсутності `groundTruth`, а також відхилення NaN.
+5. `docs/implementation-plan.md`: зафіксувати фактично внесені зміни та межі перевірки.
+
+## Критерії приймання
+
+- Невалідний JSON / відсутній `score` / текстова оцінка / `score=-1` або `score=2` не перетворюються на довірчий бал.
+- Пакетний обробник маркує неуспішні виклики як помилки та виключає їх із середніх (поточна логіка `!r.error`).
+- Без еталона `answerSimilarityToGroundTruth` залишається невизначеним; у `diagnose` не виникає `answer_quality_issue` лише через відсутність еталона.
+- Із еталоном формула Trust Score зберігається для чинних типових ваг.
+- Без еталона breakdown містить `referenceAvailable:false`; беззмістовна «нейтральна» схожість не записується.
+- `main` залишається недоторканим до перегляду Pull Request.
+
+## Обмеження
+
+Підсумковий Trust Score без еталона і з еталоном мають різну множину компонентів, тому не слід без додаткового калібрування інтерпретувати їх як прямо порівнювані. До кінцевого ТЗ додати явне розмежування reference-based та reference-free експериментів. Наскрізну роботу потребує перевірити з Ollama/ChromaDB.
+
+## CI verification safeguard
+
+To address the missing automatic checks found after PR #15, this package also adds a minimal GitHub Actions workflow on pull requests and pushes to `main`: backend dependency installation, existing `test:phase3` regression tests, TypeScript typecheck, and frontend build. CI run outcome is reported separately and is not assumed successful solely because the workflow file exists.

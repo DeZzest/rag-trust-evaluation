@@ -63,13 +63,28 @@ export function calculateTrustScore(input: TrustScoreInput): TrustBreakdown {
   }
 
   const weights = input.weights ?? TRUST_WEIGHTS;
-  let similarity = input.answerSimilarityToGroundTruth ?? 0.5;
-  similarity = Number.isFinite(similarity) ? similarity : 0.5;
+  const suppliedSimilarity = input.answerSimilarityToGroundTruth;
+  const referenceAvailable = suppliedSimilarity !== undefined;
+  if (referenceAvailable && !Number.isFinite(suppliedSimilarity)) {
+    throw new Error("Invalid answer similarity measurement");
+  }
+  const similarity = referenceAvailable
+    ? clamp(input.answerSimilarityToGroundTruth!)
+    : undefined;
 
-  const baseScore =
+  // Reference-free evaluation renormalizes weights of measured components.
+  // It must never fabricate a neutral answer similarity.
+  const availableWeightSum = weights.faithfulness + weights.precision;
+  if (!referenceAvailable &&
+      (!Number.isFinite(availableWeightSum) || availableWeightSum <= 0)) {
+    throw new Error("Invalid weights for reference-free trust score");
+  }
+  const supportedScore =
     weights.faithfulness * clamp(input.faithfulnessScore) +
-    weights.precision * clamp(input.precisionAtK) +
-    weights.similarity * clamp(similarity);
+    weights.precision * clamp(input.precisionAtK);
+  const baseScore = referenceAvailable
+    ? supportedScore + weights.similarity * similarity!
+    : supportedScore / availableWeightSum;
 
   const citationScore =
     0.7 * clamp(input.citationCoverage) + 0.3 * clamp(input.citationValidity);
@@ -77,7 +92,7 @@ export function calculateTrustScore(input: TrustScoreInput): TrustBreakdown {
   let combinedScore = 0.8 * baseScore + 0.2 * citationScore;
   let semanticCompensationApplied = false;
 
-  if (input.faithfulnessScore >= 0.9 && similarity > 0.75) {
+  if (referenceAvailable && input.faithfulnessScore >= 0.9 && similarity! > 0.75) {
     combinedScore = Math.max(combinedScore, 0.75);
     semanticCompensationApplied = true;
   }
@@ -92,7 +107,8 @@ export function calculateTrustScore(input: TrustScoreInput): TrustBreakdown {
     score,
     faithfulnessScore: clamp(input.faithfulnessScore),
     precisionAtK: clamp(input.precisionAtK),
-    answerSimilarityToGroundTruth: clamp(similarity),
+    answerSimilarityToGroundTruth: similarity,
+    referenceAvailable,
     citationCoverage: clamp(input.citationCoverage),
     citationValidity: clamp(input.citationValidity),
     baseScore: clamp(baseScore),
