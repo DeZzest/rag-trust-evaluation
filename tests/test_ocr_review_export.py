@@ -128,7 +128,7 @@ class ReviewedOcrExportTests(unittest.TestCase):
         fails(lambda s, r: r["pages"][0].pop("reviewedText"), "approved reviewedText")
         fails(lambda s, r: r["pages"][0].update(reviewedText="-- 1 of 2 --"), "placeholder")
         fails(lambda s, r: r["pages"][1].update(reviewedText="injected"), "cannot have reviewedText")
-        fails(lambda s, r: r["pages"][0].update(decision="excluded", reviewedText=None), "cannot have reviewedText")
+        fails(lambda s, r: r["pages"][0].update(decision="excluded"), "cannot have reviewedText")
 
     def test_rejects_missing_version_and_forged_inputs(self):
         stage, review, pdf = fixture()
