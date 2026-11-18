@@ -15,6 +15,7 @@ data/university_corpus/
 
 # Locally prepared or reviewed annotation data (potentially sensitive)
 data/benchmark/annotation-queue*.json
+data/benchmark/annotation-review*.json
 data/benchmark/*-annotations*.json
 data/benchmark/gold*.json
 
