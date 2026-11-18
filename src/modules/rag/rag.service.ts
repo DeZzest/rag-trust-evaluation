@@ -14,6 +14,7 @@ import {
 import { buildContext, buildContextTrace } from "./context.builder";
 import { extractAndValidateCitations } from "./citation.extractor";
 import { calculateTrustScore } from "./trust.score";
+import { assertSnapshotEvidence } from "./snapshot.provenance";
 import {
   CitationValidationResult,
   ContextTraceItem,
@@ -247,6 +248,9 @@ export async function processRagQuery(
       queryEmbedding,
       retrievalOptions
     );
+    if (options.expectedSnapshotId !== undefined) {
+      assertSnapshotEvidence(retrievedDocs, options.expectedSnapshotId);
+    }
     const retrievalMs = Date.now() - startRetrieval;
     console.log(
       `Retrieved ${retrievedDocs.length} documents in ${retrievalMs}ms`
