@@ -31,6 +31,8 @@ jobs:
         run: npm run test:benchmark
       - name: Verify source-extraction quality guards
         run: npx ts-node src/tests/source.quality.checks.ts
+      - name: Test offline OCR staging (synthetic only)
+        run: python3 -m unittest discover -s tests -p 'test_ocr_stage.py'
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
       - name: Build frontend
