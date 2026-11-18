@@ -169,3 +169,6 @@ data/university_corpus_ocr_*/
 
 # Immutable reviewed source snapshots (private/local, never commit)
 data/corpus_snapshots/
+
+# Private selected 3-PDF pilot inputs; never commit source documents
+data/pilot_stage18_inputs/
