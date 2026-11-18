@@ -5,6 +5,7 @@ import { calculateTrustScore } from "../modules/rag/trust.score";
 import { RetrievedChunk } from "../modules/rag/types";
 import { calculateRetrievalMetrics } from "../modules/evaluation/retrieval.metrics";
 import { parseFaithfulnessScore } from "../modules/evaluation/faithfulness.service";
+import { parseClaimGroundingResponse, unavailableClaimGrounding } from "../modules/evaluation/claim.grounding";
 import { SearchResult } from "../modules/vector-db/chroma.service";
 
 function approxEqual(actual: number, expected: number, epsilon = 1e-6) {
@@ -262,6 +263,76 @@ function testTrustScoreWithoutGroundTruth() {
   );
 }
 
+function testClaimGroundingEvidenceValidation() {
+  const sources = [
+    {
+      id: "admission_2026_section_2",
+      text: "Подання заяв здійснюється до 15 серпня включно. Навчання починається у вересні.",
+    },
+  ];
+  const valid = parseClaimGroundingResponse(JSON.stringify({
+    claims: [
+      {
+        claim: "Термін подання заяв — до 15 серпня.",
+        verdict: "supported",
+        sourceIndex: 1,
+        evidenceQuote: "Подання заяв здійснюється до 15 серпня включно.",
+        reason: "Прямо наведено у джерелі",
+      },
+      {
+        claim: "Термін подання заяв — до 20 серпня.",
+        verdict: "contradicted",
+        sourceIndex: 1,
+        evidenceQuote: "Подання заяв здійснюється до 15 серпня включно.",
+        reason: "У джерелі вказана інша дата",
+      },
+      { claim: "Є окрема стипендія.", verdict: "unsupported", reason: "Немає в контексті" },
+    ],
+  }), sources);
+  assert.equal(valid.status, "completed");
+  assert.equal(valid.counts.supported, 1);
+  assert.equal(valid.counts.contradicted, 1);
+  assert.equal(valid.counts.unsupported, 1);
+  assert.equal(valid.claims[0].sourceId, sources[0].id);
+  assert.equal(valid.claims[0].sourceIndex, 1);
+
+  const invalid = parseClaimGroundingResponse(JSON.stringify({
+    claims: [
+      {
+        claim: "Неіснуюча умова",
+        verdict: "supported",
+        sourceIndex: 2,
+        evidenceQuote: "Вигадана підстава для зарахування",
+      },
+      {
+        claim: "Ще одна умова",
+        verdict: "contradicted",
+        sourceIndex: 1,
+        evidenceQuote: "Вигадана цитата із документа",
+      },
+      {
+        claim: "Третя умова",
+        verdict: "supported",
+        sourceIndex: 1,
+        evidenceQuote: "Подання",
+      },
+    ],
+  }), sources);
+  assert.equal(invalid.counts.uncertain, 3);
+  assert.equal(invalid.counts.supported, 0);
+  assert.equal(invalid.counts.contradicted, 0);
+  for (const claim of invalid.claims) {
+    assert.equal(claim.reason, "invalid_or_missing_evidence");
+    assert.equal(claim.sourceId, undefined);
+  }
+  assert.throws(() => parseClaimGroundingResponse("invalid JSON", sources), /claim_grounding_invalid_json/);
+  assert.throws(() => parseClaimGroundingResponse('{"claims":[]}', sources), /claim_grounding_invalid_claims/);
+  assert.throws(() => parseClaimGroundingResponse('{"claims":[{"claim":"test","verdict":"incorrect"}]}', sources), /claim_grounding_invalid_schema/);
+  const missing = unavailableClaimGrounding("no_sources_retrieved");
+  assert.equal(missing.status, "unavailable");
+  assert.equal(missing.counts.supported, 0);
+}
+
 function run() {
   testContextBuilder();
   testCitationExtraction();
@@ -270,6 +341,7 @@ function run() {
   testRecallWithDuplicateChunks();
   testFaithfulnessJudgeValidation();
   testTrustScoreWithoutGroundTruth();
+  testClaimGroundingEvidenceValidation();
   console.log("Phase 3 checks passed.");
 }
 
