@@ -166,3 +166,6 @@ vite.config.ts.timestamp-*
 data/ocr_staging/
 data/ocr_review/
 data/university_corpus_ocr_*/
+
+# Immutable reviewed source snapshots (private/local, never commit)
+data/corpus_snapshots/
