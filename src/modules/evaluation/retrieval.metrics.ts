@@ -55,15 +55,20 @@ export function calculateRetrievalMetrics(
     new Set(relevantDocumentIds.map(normalizeRelevantDocumentId))
   );
   const normalizedRetrieved = retrievedDocs.map(normalizeRetrievedDocumentId);
+  const relevantDocumentSet = new Set(normalizedRelevant);
   const relevantRetrieved = normalizedRetrieved.filter((id) =>
-    normalizedRelevant.includes(id)
+    relevantDocumentSet.has(id)
   );
 
+  // Precision is calculated per retrieved chunk; recall is calculated per
+  // unique relevant document. Multiple chunks from the same document must
+  // not inflate document-level recall above 1.
   const precisionAtK = relevantRetrieved.length / k;
+  const uniqueRelevantRetrieved = new Set(relevantRetrieved);
 
   const recallAtK =
     normalizedRelevant.length > 0
-      ? relevantRetrieved.length / normalizedRelevant.length
+      ? uniqueRelevantRetrieved.size / normalizedRelevant.length
       : 0;
 
   const averageSimilarity =
