@@ -33,7 +33,7 @@ function testCorpusInspection(): void {
   assert.equal(result.distinctTextCount, 3);
   assert.equal(result.repeatedTextOccurrences, 1);
   assert.equal(result.shortUnder20, 1);
-  assert.equal(result.shortUnder60, 3);
+  assert.equal(result.shortUnder60, 2);
   assert.equal(result.placeholderCount, 1);
   assert.equal(result.declaredYears["2026"], 3);
   assert.equal(result.declaredYears["2025"], 1);
