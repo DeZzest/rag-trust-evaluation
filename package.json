@@ -22,7 +22,8 @@
     "corpus:snapshot": "python scripts/assemble_reviewed_snapshot.py",
     "corpus:verify": "python scripts/verify_reviewed_snapshot.py",
     "corpus:index-snapshot": "ts-node src/modules/vector/snapshot.index.cli.ts",
-    "test:snapshot-index": "ts-node src/tests/snapshot.index.checks.ts"
+    "test:snapshot-index": "ts-node src/tests/snapshot.index.checks.ts",
+    "test:snapshot-query": "ts-node src/tests/snapshot.query.checks.ts"
   },
   "dependencies": {
     "axios": "^1.13.2",
