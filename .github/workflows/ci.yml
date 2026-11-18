@@ -41,6 +41,8 @@ jobs:
         run: npm run test:snapshot-audit
       - name: Verify embedding tag binding for snapshot collections (synthetic only)
         run: npm run test:embedding-pin
+      - name: Test experimental claim-aware Trust Score (synthetic only)
+        run: npm run test:claim-aware
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
       - name: Build frontend
