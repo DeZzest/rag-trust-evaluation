@@ -4,6 +4,7 @@ import { extractAndValidateCitations } from "../modules/rag/citation.extractor";
 import { calculateTrustScore } from "../modules/rag/trust.score";
 import { RetrievedChunk } from "../modules/rag/types";
 import { calculateRetrievalMetrics } from "../modules/evaluation/retrieval.metrics";
+import { parseFaithfulnessScore } from "../modules/evaluation/faithfulness.service";
 import { SearchResult } from "../modules/vector-db/chroma.service";
 
 function approxEqual(actual: number, expected: number, epsilon = 1e-6) {
@@ -194,12 +195,81 @@ function testRecallWithDuplicateChunks() {
   approxEqual(emptyGroundTruth.recallAtK, 0);
 }
 
+function testFaithfulnessJudgeValidation() {
+  approxEqual(parseFaithfulnessScore('{"score":0,"reason":"unsupported"}'), 0);
+  approxEqual(parseFaithfulnessScore('{"score":1,"reason":"supported"}'), 1);
+  approxEqual(parseFaithfulnessScore('  {"score":0.65}  '), 0.65);
+
+  const invalidResponses = [
+    "",
+    "The faithfulness is 0.8",
+    "0.8",
+    "null",
+    "[]",
+    '{"reason":"no score"}',
+    '{"score":"0.5"}',
+    '{"score":null}',
+    '{"score":-0.1}',
+    '{"score":1.2}',
+    '{"score":{}}',
+  ];
+
+  for (const response of invalidResponses) {
+    assert.throws(
+      () => parseFaithfulnessScore(response),
+      /faithfulness_evaluation_invalid_(json|score)/,
+      `Invalid judge response must fail: ${JSON.stringify(response)}`
+    );
+  }
+}
+
+function testTrustScoreWithoutGroundTruth() {
+  const weights = { faithfulness: 0.4, precision: 0.3, similarity: 0.3 };
+  const input = {
+    mode: "full" as const,
+    precisionAtK: 0,
+    faithfulnessScore: 1,
+    citationCoverage: 1,
+    citationValidity: 1,
+    weights,
+  };
+  const withoutReference = calculateTrustScore(input);
+  approxEqual(withoutReference.baseScore!, 0.4 / 0.7);
+  approxEqual(withoutReference.score, 0.8 * (0.4 / 0.7) + 0.2);
+  assert.equal(withoutReference.referenceAvailable, false);
+  assert.equal(withoutReference.answerSimilarityToGroundTruth, undefined);
+  assert.equal(withoutReference.semanticCompensationApplied, false);
+
+  const withReference = calculateTrustScore({
+    ...input,
+    answerSimilarityToGroundTruth: 0.5,
+  });
+  approxEqual(withReference.baseScore!, 0.4 + 0.3 * 0.5);
+  approxEqual(withReference.score, 0.8 * 0.55 + 0.2);
+  assert.equal(withReference.referenceAvailable, true);
+  approxEqual(withReference.answerSimilarityToGroundTruth!, 0.5);
+
+  assert.throws(
+    () => calculateTrustScore({ ...input, answerSimilarityToGroundTruth: Number.NaN }),
+    /Invalid answer similarity measurement/
+  );
+  assert.throws(
+    () => calculateTrustScore({
+      ...input,
+      weights: { faithfulness: 0, precision: 0, similarity: 1 },
+    }),
+    /Invalid weights for reference-free trust score/
+  );
+}
+
 function run() {
   testContextBuilder();
   testCitationExtraction();
   testTrustScore();
   testDocumentLevelRetrievalMetrics();
   testRecallWithDuplicateChunks();
+  testFaithfulnessJudgeValidation();
+  testTrustScoreWithoutGroundTruth();
   console.log("Phase 3 checks passed.");
 }
 
