@@ -1,4 +1,6 @@
 import fetch from "node-fetch";
+import { embeddingConfig } from "../embeddings/embedding.service";
+import { snapshotEmbeddingMetadata, assertSnapshotEmbeddingMetadata } from "../vector/embedding.identity";
 
 const CHROMA_BASE_URL =
   process.env.CHROMA_BASE_URL ?? "http://localhost:8000";
@@ -211,7 +213,7 @@ export async function createExclusiveSnapshotCollection(
     body: JSON.stringify({
       name: collectionName,
       get_or_create: false,
-      metadata: { "hnsw:space": "cosine" },
+      metadata: snapshotEmbeddingMetadata(collectionName, embeddingConfig.model),
     }),
   });
   if (!result.ok) {
@@ -252,6 +254,7 @@ export async function getExistingSnapshotCollection(
   if (matches.length !== 1) {
     throw new Error("Approved snapshot collection missing or ambiguous; no collection created");
   }
+  assertSnapshotEmbeddingMetadata(collectionName, embeddingConfig.model, matches[0].metadata);
   return { name: collectionName, id: matches[0].id };
 }
 
