@@ -261,6 +261,7 @@ app.post("/rag/query", async (req: Request, res: Response) => {
       documentType,
       generationModel,
       includeFaithfulness,
+      includeClaimGrounding,
       evaluationModel,
     } = req.body;
 
@@ -324,6 +325,16 @@ app.post("/rag/query", async (req: Request, res: Response) => {
       });
     }
 
+    if (
+      includeClaimGrounding !== undefined &&
+      typeof includeClaimGrounding !== "boolean"
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: "Field 'includeClaimGrounding' must be a boolean when provided.",
+      });
+    }
+
     if (evaluationModel !== undefined && typeof evaluationModel !== "string") {
       return res.status(400).json({
         success: false,
@@ -343,6 +354,7 @@ app.post("/rag/query", async (req: Request, res: Response) => {
       documentType,
       generationModel,
       includeFaithfulness,
+      includeClaimGrounding,
       evaluationModel,
     });
 

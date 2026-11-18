@@ -43,6 +43,7 @@ export interface RagQueryOptions {
   documentType?: string;
   generationModel?: string;
   includeFaithfulness?: boolean;
+  includeClaimGrounding?: boolean;
   evaluationModel?: string;
 }
 

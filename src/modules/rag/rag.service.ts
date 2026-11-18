@@ -6,6 +6,11 @@ import {
   RetrievalOptions,
 } from "../vector/index_corpus";
 import { evaluateFaithfulness } from "../evaluation/faithfulness.service";
+import {
+  evaluateClaimGrounding,
+  ClaimGroundingResult,
+  unavailableClaimGrounding,
+} from "../evaluation/claim.grounding";
 import { buildContext, buildContextTrace } from "./context.builder";
 import { extractAndValidateCitations } from "./citation.extractor";
 import { calculateTrustScore } from "./trust.score";
@@ -29,6 +34,7 @@ export interface RagQueryResult {
   contextTrace: ContextTraceItem[];
   citations: number[];
   citationValidation: CitationValidationResult;
+  claimGrounding?: ClaimGroundingResult;
   trust: {
     score: number;
     mode: "lightweight" | "full";
@@ -262,6 +268,9 @@ export async function processRagQuery(
         contextTrace: [],
         citations: [],
         citationValidation: emptyCitationValidation("no_sources_retrieved"),
+        claimGrounding: options.includeClaimGrounding
+          ? unavailableClaimGrounding("no_sources_retrieved")
+          : undefined,
         trust: {
           score: 0,
           mode: "lightweight",
@@ -348,6 +357,22 @@ export async function processRagQuery(
       }
     }
 
+    let claimGrounding: ClaimGroundingResult | undefined;
+    if (options.includeClaimGrounding) {
+      try {
+        claimGrounding = await evaluateClaimGrounding(
+          answer,
+          retrievedDocs,
+          options.evaluationModel
+        );
+      } catch (error) {
+        console.warn("Claim grounding evaluation failed in rag/query:", error);
+        claimGrounding = unavailableClaimGrounding(
+          error instanceof Error ? error.message : "claim_grounding_failed"
+        );
+      }
+    }
+
     const totalMs = Date.now() - startTotal;
 
     const result: RagQueryResult = {
@@ -356,6 +381,7 @@ export async function processRagQuery(
       contextTrace,
       citations: citationValidation.uniqueCitations,
       citationValidation,
+      claimGrounding,
       trust: {
         score: trustBreakdown.score,
         mode: trustBreakdown.mode,
