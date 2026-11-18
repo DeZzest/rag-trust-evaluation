@@ -10,7 +10,7 @@
     "index:corpus": "ts-node src/modules/vector/index_corpus.ts",
     "test:phase3": "ts-node src/tests/phase3.checks.ts",
     "benchmark:validate": "ts-node src/modules/evaluation/benchmark.cli.ts",
-    "test:benchmark": "ts-node src/tests/benchmark.checks.ts && ts-node src/tests/annotation.queue.checks.ts && ts-node src/tests/annotation.review.checks.ts && ts-node src/tests/benchmark.report.checks.ts && ts-node src/tests/corpus.readiness.checks.ts",
+    "test:benchmark": "ts-node src/tests/benchmark.checks.ts && ts-node src/tests/annotation.queue.checks.ts && ts-node src/tests/annotation.review.checks.ts && ts-node src/tests/benchmark.report.checks.ts && ts-node src/tests/corpus.readiness.checks.ts && ts-node src/tests/pilot.data.checks.ts",
     "benchmark:prepare": "ts-node src/modules/evaluation/annotation.queue.cli.ts",
     "benchmark:adjudicate": "ts-node src/modules/evaluation/annotation.review.cli.ts",
     "benchmark:score": "ts-node src/modules/evaluation/benchmark.report.cli.ts",
