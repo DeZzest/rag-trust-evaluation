@@ -15,6 +15,9 @@
 
 ## План до створення даних
 
+**Уточнення критичного блокувального дефекту (знайдено після планування):** наявний benchmark:prepare перераховував reviewed corpusSnapshotId як hash(JSONL), хоча corpus:snapshot призначає ID із provenance fingerprint. Для коректної зв'язності gold і експерименту додати вузьке виправлення: передавати єдиний коректний metadata.corpusSnapshotId із усіх JSONL-рядків, відхиляти суміш tagged/untagged або різних snapshot ID; зберегти legacy fallback для повністю нетегованого корпусу, додати синтетичні тести. Це виправлення **не є новою дослідницькою функцією**.
+
+
 1. Створити `data/benchmark/pilot-source-selection.json` з реальними `documentId`, URL, SHA-256 PDF, кількістю сторінок і статусом `human_review_pending`, без вигаданих `documentVersion` або року чинності.
 2. На основі лише прочитаного тексту цих PDF підготувати **29 україномовних кандидатів запитань** (фактичні, запитання на суперечність, запитання поза тематикою) у `data/benchmark/pilot-question-seeds.json` з `documentId` і підказками сторінок. Ці підказки — **не gold evidence**, а `designIntent` — не експертний verdict.
 3. Описати в `docs/stage18-pilot-annotation-guide.md` локальні кроки для Windows PowerShell і відділити OCR staging, реальний human review, перевірку редакції, експорт, snapshot, gold annotation, benchmark.
