@@ -170,5 +170,23 @@ class ReviewedOcrExportTests(unittest.TestCase):
         self.assertTrue(all(len(c) <= 650 for c in chunks))
 
 
+    def test_template_is_pending_not_approval(self):
+        template_path = Path(__file__).resolve().parents[1] / "scripts" / "ocr_review_template.py"
+        template_spec = importlib.util.spec_from_file_location("ocr_review_template", template_path)
+        template_module = importlib.util.module_from_spec(template_spec)
+        sys.modules[template_spec.name] = template_module
+        template_spec.loader.exec_module(template_module)
+        stage, _review, pdf = fixture()
+        stage_bytes = json.dumps(stage, ensure_ascii=False).encode()
+        template = template_module.pending_review_template(stage_bytes)
+        self.assertEqual(template["stagingSha256"], sha256(stage_bytes))
+        self.assertEqual(len(template["pages"]), 2)
+        self.assertTrue(all(p["decision"] == "pending" for p in template["pages"]))
+        self.assertIsNone(template["verifiedDocumentYear"])
+        with self.assertRaisesRegex(ValueError, "documentVersion"):
+            reviewer.prepare_export(stage_bytes, json.dumps(template).encode(), pdf)
+
+
+
 if __name__ == "__main__":
     unittest.main()
