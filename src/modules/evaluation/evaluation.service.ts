@@ -12,7 +12,7 @@ const BENCH_DIR = path.resolve(process.cwd(), "data");
 const BENCH_FILE = path.join(BENCH_DIR, "benchmarks.json");
 
 // Version for tracking evaluation logic changes
-const EVALUATION_VERSION = "1.1.0";
+const EVALUATION_VERSION = "1.2.0";
 
 function ensureBenchFile() {
   if (!fs.existsSync(BENCH_DIR)) fs.mkdirSync(BENCH_DIR, { recursive: true });
@@ -193,7 +193,7 @@ function defaultCitationValidation(issue: string): CitationValidationResult {
 function diagnose(r: EvaluationQueryResult): string {
   if (r.retrieval.precisionAtK < 0.5) return "retrieval_issue";
   if (r.faithfulnessScore < 0.5) return "hallucination_issue";
-  if ((r.answerSimilarityToGroundTruth ?? 0) < 0.5) return "answer_quality_issue";
+  if (r.answerSimilarityToGroundTruth !== undefined && r.answerSimilarityToGroundTruth < 0.5) return "answer_quality_issue";
   if (!r.citationValidation.isValid) return "citation_issue";
   return "healthy";
 }
@@ -237,9 +237,12 @@ export async function evaluateRagQuery(
   })();
 
   const simPromise = (async () => {
-    if (!groundTruth) return undefined;
+    if (typeof groundTruth !== "string" || !groundTruth.trim()) return undefined;
     const s = Date.now();
     const v = await calculateAnswerSimilarity(ragResult.answer, groundTruth);
+    if (!Number.isFinite(v)) {
+      throw new Error("Invalid answer similarity measurement");
+    }
     similarityMs = Date.now() - s;
     return v;
   })();
@@ -247,14 +250,11 @@ export async function evaluateRagQuery(
   const [faithfulnessScore, answerSimilarity] = await Promise.all([faithPromise, simPromise]);
   const evaluationMs = Date.now() - evalStart;
 
-  let safeSimilarity = answerSimilarity ?? 0.5;
-  if (!Number.isFinite(safeSimilarity)) safeSimilarity = 0.5;
-
   const trustBreakdown = calculateTrustScore({
     mode: "full",
     precisionAtK: retrievalMetrics.precisionAtK,
     faithfulnessScore,
-    answerSimilarityToGroundTruth: safeSimilarity,
+    answerSimilarityToGroundTruth: answerSimilarity,
     citationCoverage: ragResult.citationValidation.coverage,
     citationValidity: ragResult.citationValidation.citationValidity,
     citationInvalidAfterRetry:
@@ -274,7 +274,7 @@ export async function evaluateRagQuery(
     citationValidation: ragResult.citationValidation,
     retrieval: retrievalMetrics,
     faithfulnessScore,
-    answerSimilarityToGroundTruth: safeSimilarity,
+    answerSimilarityToGroundTruth: answerSimilarity,
     trustScore: trustBreakdown.score,
     trustBreakdown,
     evaluationModel: evaluationModel ?? "default",
@@ -340,7 +340,7 @@ export async function evaluateRagQueryBatch(
             citationValidity: 0,
             faithfulnessScore: 0,
             precisionAtK: 0,
-            answerSimilarityToGroundTruth: 0,
+            referenceAvailable: false,
             baseScore: 0,
             citationScore: 0,
             semanticCompensationApplied: false,
