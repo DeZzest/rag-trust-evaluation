@@ -20,7 +20,9 @@
     "ocr:review-template": "python scripts/ocr_review_template.py",
     "ocr:review-export": "python scripts/ocr_review_export.py",
     "corpus:snapshot": "python scripts/assemble_reviewed_snapshot.py",
-    "corpus:verify": "python scripts/verify_reviewed_snapshot.py"
+    "corpus:verify": "python scripts/verify_reviewed_snapshot.py",
+    "corpus:index-snapshot": "ts-node src/modules/vector/snapshot.index.cli.ts",
+    "test:snapshot-index": "ts-node src/tests/snapshot.index.checks.ts"
   },
   "dependencies": {
     "axios": "^1.13.2",
