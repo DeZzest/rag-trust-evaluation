@@ -1,0 +1,299 @@
+{
+  "id": "lute-uk-pilot-question-candidates-v1",
+  "description": "UNREVIEWED query candidates selected from 3 actual archived PDFs. relevantDocumentIds are retrieval SOURCE POOLS ONLY, not expert relevance labels. Out-of-scope controls use all 3 files as a negative retrieval pool.",
+  "provisional": true,
+  "sourceSelection": "data/benchmark/pilot-source-selection.json",
+  "dataset": [
+    {
+      "id": "pilot-q01",
+      "query": "Якою мовою, відповідно до наведених положень, здійснюється освітній процес у закладах вищої освіти?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 1",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q02",
+      "query": "За яких умов заклад вищої освіти може проводити окремі заняття та контрольні заходи англійською мовою?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 1",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q03",
+      "query": "Що повинен забезпечити заклад освіти, якщо студент письмово попросив переклад дисципліни державною мовою?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 1",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q04",
+      "query": "Що передбачає пункт 8.3 Статуту ЛТЕУ щодо мови викладання?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 1",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q05",
+      "query": "Як організовується вивчення державної мови для іноземних громадян, які навчаються іноземною мовою?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 1",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q06",
+      "query": "Хто, згідно з текстом про мову освітнього процесу, визначає перелік іноземних мов викладання?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 2",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q07",
+      "query": "Яка мета Положення про робочі групи з розроблення і супроводження освітніх програм?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 3",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q08",
+      "query": "Хто очолює робочу групу освітньої програми?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 3",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q09",
+      "query": "Яким рішенням або документом визначається робоча група освітньої програми?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 4",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q10",
+      "query": "Які мінімальні вимоги до складу робочої групи освітньої програми бакалаврського рівня?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 4",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q11",
+      "query": "Які вимоги до науково-педагогічних працівників у складі робочої групи магістерського рівня?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 4",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q12",
+      "query": "Хто затверджує склад робочих груп за освітніми програмами ЛТЕУ?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 5",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q13",
+      "query": "Які функції виконує робоча група під час розроблення та супроводження освітньої програми?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 6",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q14",
+      "query": "З якими структурними підрозділами університету взаємодіє гарант освітньої програми та робоча група?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 7",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q15",
+      "query": "З якого моменту набирає чинності Положення про робочі групи освітніх програм?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_11"
+      ],
+      "expectedSourceSection": "Section 7",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q16",
+      "query": "Яка мета організації методичної роботи в університеті за відповідним Положенням?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 3",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q17",
+      "query": "Які основні принципи методичної роботи названо в Положенні?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 4",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q18",
+      "query": "Які основні форми методичної роботи передбачено в університеті?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 5",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q19",
+      "query": "Хто координує та здійснює керівництво методичною роботою на рівні університету?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 5",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q20",
+      "query": "Яку роль виконує Науково-методична рада університету?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 6",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q21",
+      "query": "Яким способом затверджується персональний склад Науково-методичної ради університету?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 7",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q22",
+      "query": "Як часто мають відбуватися засідання Науково-методичної комісії факультету?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 8",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q23",
+      "query": "Хто керує методичною роботою на кафедрі та відповідає за її якість?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 10",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q24",
+      "query": "Як у Положенні визначається силабус освітньої компоненти?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 15",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q25",
+      "query": "Які складові має структура силабуса освітньої компоненти?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 15",
+      "designIntent": "source_finding",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q26",
+      "query": "Чи правильно, що в ЛТЕУ всі дисципліни без винятку завжди викладаються лише англійською мовою?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7"
+      ],
+      "expectedSourceSection": "Section 1",
+      "designIntent": "contradiction_probe",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q27",
+      "query": "Чи встановлено в Положенні, що Науково-методична комісія факультету проводить засідання не частіше ніж раз на рік?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 8",
+      "designIntent": "contradiction_probe",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q28",
+      "query": "Яка точна вартість контрактного навчання на магістратурі ЛТЕУ у 2026 році?",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_7",
+        "lute_regulations_2026_pdf_11",
+        "lute_regulations_2026_pdf_17"
+      ],
+      "designIntent": "out_of_scope_probe",
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q29",
+      "query": "Назвіть прізвище чинного станом на листопад 2026 року голови Науково-методичної ради ЛТЕУ.",
+      "relevantDocumentIds": [
+        "lute_regulations_2026_pdf_17"
+      ],
+      "expectedSourceSection": "Section 7",
+      "designIntent": "out_of_scope_probe",
+      "reviewStatus": "unreviewed"
+    }
+  ]
+}
