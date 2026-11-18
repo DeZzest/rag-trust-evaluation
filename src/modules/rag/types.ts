@@ -45,6 +45,8 @@ export interface RagQueryOptions {
   includeFaithfulness?: boolean;
   includeClaimGrounding?: boolean;
   evaluationModel?: string;
+  /** Internal provenance guard for approved snapshot queries only. */
+  expectedSnapshotId?: string;
 }
 
 export interface TrustBreakdown {

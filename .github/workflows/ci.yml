@@ -35,6 +35,8 @@ jobs:
         run: python3 -m unittest discover -s tests -p 'test_ocr_*.py'
       - name: Check safe isolated snapshot indexing (synthetic only)
         run: npm run test:snapshot-index
+      - name: Check approved snapshot RAG routing and provenance (synthetic only)
+        run: npm run test:snapshot-query
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
       - name: Build frontend

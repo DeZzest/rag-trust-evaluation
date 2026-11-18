@@ -248,6 +248,60 @@ app.post("/vector-test", async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Opt-in research endpoint: only the snapshot configured by the SERVER
+ * operator may be used. Never accepts a collection ID or filesystem path
+ * from the HTTP caller, and never creates a collection.
+ */
+app.post("/rag/query/snapshot", async (req: Request, res: Response) => {
+  const {
+    validateSnapshotQueryRequest,
+    readApprovedSnapshotConfig,
+    runApprovedSnapshotQuery,
+  } = await import("../modules/rag/snapshot.query");
+  let request;
+  try {
+    request = validateSnapshotQueryRequest(req.body);
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Invalid snapshot query payload",
+    });
+  }
+  try {
+    const config = readApprovedSnapshotConfig(process.env);
+    const { loadVerifiedSnapshotIndexPlan } = await import(
+      "../modules/vector/snapshot.index"
+    );
+    const { getExistingSnapshotCollection, getCollectionCount } = await import(
+      "../modules/vector-db/chroma.service"
+    );
+    const { processRagQuery } = await import("../modules/rag/rag.service");
+    const output = await runApprovedSnapshotQuery(config, request, {
+      verifySnapshot: loadVerifiedSnapshotIndexPlan,
+      findExistingCollection: getExistingSnapshotCollection,
+      getCollectionCount,
+      runRag: async (collectionId, query, options) =>
+        processRagQuery(collectionId, query, options),
+    });
+    return res.json({
+      success: true,
+      corpusSnapshotId: output.corpusSnapshotId,
+      collectionName: output.collectionName,
+      collectionId: output.collectionId,
+      indexedChunkCount: output.indexedChunkCount,
+      partialSnapshot: output.partialSnapshot,
+      ...output.result,
+    });
+  } catch (error) {
+    console.error("Snapshot RAG query refused:", error);
+    return res.status(503).json({
+      success: false,
+      error: "Approved snapshot query unavailable, inconsistent, or failed. No fallback to legacy corpus.",
+    });
+  }
+});
+
 app.post("/rag/query", async (req: Request, res: Response) => {
   console.log("RAG/QUERY ENDPOINT HIT");
   console.log("Body:", req.body);
