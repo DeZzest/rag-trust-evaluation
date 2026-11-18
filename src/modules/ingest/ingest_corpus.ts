@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { isNonEvidenceLine } from "../normalizer/evidence.quality";
 
 const CORPUS_DIR = path.join(__dirname, "../../../data/university_corpus");
 const OUTPUT_FILE = path.join(__dirname, "../../../data/ingested_corpus.jsonl");
@@ -92,7 +93,7 @@ function normalizeChunkText(lines: string[]): string {
     .trim();
 }
 
-function chunkDocument(text: string): Array<{
+export function chunkDocument(text: string): Array<{
   chunkText: string;
   section: string;
   subsection?: string;
@@ -142,7 +143,7 @@ function chunkDocument(text: string): Array<{
 
   for (const lineRaw of contentLines) {
     const line = lineRaw.trim();
-    if (!line) continue;
+    if (!line || isNonEvidenceLine(line)) continue;
 
     const sectionMatch = line.match(/^Section\s+(\d+)\.\s*(.+)$/i);
     if (sectionMatch) {
@@ -161,7 +162,8 @@ function chunkDocument(text: string): Array<{
       if (!currentSection) {
         currentSection = currentSubsection.split(".")[0];
       }
-      currentBuffer = [pointMatch[2].trim()];
+      const itemText = pointMatch[2].trim();
+      currentBuffer = isNonEvidenceLine(itemText) ? [] : [itemText];
       continue;
     }
 
@@ -180,18 +182,8 @@ function chunkDocument(text: string): Array<{
   flushSubsection();
   flushSectionLoose();
 
-  if (chunks.length === 0) {
-    const compact = text.replace(/\s+/g, " ").trim();
-    if (compact) {
-      chunks.push({
-        chunkText: compact,
-        section: "1",
-        subsection: "1.1",
-        title: header.documentTitle ?? "General",
-      });
-    }
-  }
-
+  // An empty body must not fall back to indexing structured metadata
+  // (Document/Source/URL), which is not evidence for a user query.
   return chunks;
 }
 
@@ -230,6 +222,10 @@ function main() {
     const documentTitle = header.documentTitle || normalizedBase;
     const source = header.source || domainFromUrl(header.url) || "local";
     const chunks = chunkDocument(text);
+    if (chunks.length === 0) {
+      console.warn(`Skipping ${fileName}: no extractable evidence text (OCR or source review required)`);
+      continue;
+    }
 
     for (const chunk of chunks) {
       const detectedReferences = detectReferences(chunk.chunkText);

@@ -1,6 +1,7 @@
 import { PDFParse } from "pdf-parse";
 import { SectionSeed } from "../normalizer/structure.builder";
 import { cleanText } from "../normalizer/text.cleaner";
+import { isNonEvidenceLine } from "../normalizer/evidence.quality";
 
 export interface ParsedPdfDocument {
   title: string;
@@ -29,14 +30,16 @@ function inferTitle(rawText: string, fallback?: string): string {
   return firstLines[0] || "PDF document";
 }
 
-function buildSectionsFromPdfText(rawText: string, documentTitle: string): SectionSeed[] {
+export function buildSectionsFromPdfText(rawText: string, documentTitle: string): SectionSeed[] {
   const normalized = cleanText(rawText);
   if (!normalized) return [];
 
   const lines = normalized
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter((line) => line.length > 0 && !isNonEvidenceLine(line));
+
+  if (lines.length === 0) return [];
 
   const sections: SectionSeed[] = [];
   let currentHeading = documentTitle;
@@ -112,6 +115,11 @@ export async function parsePdfBuffer(
 
   title = inferTitle(rawText, title);
   const sections = buildSectionsFromPdfText(rawText, title);
+  if (sections.length === 0) {
+    // For scanned PDFs pdf-parse may yield only "-- N of M --" page headers.
+    // Never treat them as source evidence: OCR is required for usable text.
+    throw new Error("PDF_REQUIRES_OCR: no extractable source text after removing page markers");
+  }
 
   return {
     title,
