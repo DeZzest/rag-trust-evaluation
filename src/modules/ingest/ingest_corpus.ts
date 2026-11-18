@@ -162,7 +162,8 @@ export function chunkDocument(text: string): Array<{
       if (!currentSection) {
         currentSection = currentSubsection.split(".")[0];
       }
-      currentBuffer = [pointMatch[2].trim()];
+      const itemText = pointMatch[2].trim();
+      currentBuffer = isNonEvidenceLine(itemText) ? [] : [itemText];
       continue;
     }
 
