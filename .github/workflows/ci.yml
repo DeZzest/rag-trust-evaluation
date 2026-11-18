@@ -37,6 +37,8 @@ jobs:
         run: npm run test:snapshot-index
       - name: Check approved snapshot RAG routing and provenance (synthetic only)
         run: npm run test:snapshot-query
+      - name: Audit complete Chroma snapshot consistency (synthetic only)
+        run: npm run test:snapshot-audit
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
       - name: Build frontend
