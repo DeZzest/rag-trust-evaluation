@@ -20,6 +20,7 @@ data/benchmark/*-annotations*.json
 data/benchmark/gold*.json
 data/benchmark/*-predictions*.json
 data/benchmark/*-report*.json
+data/benchmark/*-readiness*.json
 
 # Logs
 logs
