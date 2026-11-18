@@ -29,6 +29,8 @@ jobs:
         run: npm run test:phase3
       - name: Run benchmark offline checks
         run: npm run test:benchmark
+      - name: Verify source-extraction quality guards
+        run: npx ts-node src/tests/source.quality.checks.ts
       - name: Install frontend dependencies
         run: npm ci --prefix frontend
       - name: Build frontend
