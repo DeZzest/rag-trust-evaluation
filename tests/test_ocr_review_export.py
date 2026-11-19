@@ -104,6 +104,10 @@ class ReviewedOcrExportTests(unittest.TestCase):
             output = base / "university_corpus_ocr_synthetic_v1"
             reviewer.export_to_new_directory(output, name, text, sidecar)
             self.assertEqual((output / name).read_text(encoding="utf-8"), text)
+            # Exact bytes matter: Windows CRLF conversion must not invalidate
+            # the immutable SHA-256 written to the provenance sidecar.
+            self.assertEqual((output / name).read_bytes(), text.encode("utf-8"))
+            self.assertEqual(sha256((output / name).read_bytes()), sidecar["exportedTextSha256"])
             other = json.loads((output / (name[:-4] + ".provenance.json")).read_text())
             self.assertEqual(other["sourcePdfSha256"], sha256(pdf))
             with self.assertRaises(FileExistsError):
