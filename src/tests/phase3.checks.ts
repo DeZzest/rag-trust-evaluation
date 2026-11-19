@@ -1,5 +1,6 @@
 import assert from "assert/strict";
 import { buildContext, buildContextTrace } from "../modules/rag/context.builder";
+import { refuseAfterInvalidCitations } from "../modules/rag/rag.service";
 import { extractAndValidateCitations } from "../modules/rag/citation.extractor";
 import { calculateTrustScore } from "../modules/rag/trust.score";
 import { RetrievedChunk } from "../modules/rag/types";
@@ -39,6 +40,37 @@ function testContextBuilder() {
   assert.equal(trace.length, 1);
   assert.equal(trace[0].citationNumber, 1);
   assert.equal(trace[0].sourceId, "admission_rules_2024_3.2");
+}
+
+function testFailClosedAfterCitationRetry() {
+  // Regresses the real pilot failure: out-of-scope question, retry failed,
+  // source snippets previously presented as a fully cited "answer".
+  for (const query of ["Який розмір стипендії?", "What is the grant amount?"]) {
+    const result = refuseAfterInvalidCitations(query, 1);
+    assert.equal(result.citations.length, 0);
+    assert.equal(result.citationValidation.hasCitations, false);
+    assert.equal(result.citationValidation.isValid, false);
+    assert.equal(result.citationValidation.coverage, 0);
+    assert.equal(result.citationValidation.citationValidity, 0);
+    assert.equal(result.citationValidation.retryCount, 1);
+    assert.deepEqual(result.citationValidation.issues, [
+      "citation_validation_failed_after_retry",
+    ]);
+    assert.equal(/\[\d+\]/.test(result.answer), false);
+    assert.equal(result.answer.includes("Фрагмент із джерела"), false);
+    const guardedTrust = calculateTrustScore({
+      mode: "lightweight",
+      retrievalQuality: 0.74,
+      citationCoverage: result.citationValidation.coverage,
+      citationValidity: result.citationValidation.citationValidity,
+      citationInvalidAfterRetry: true,
+    });
+    assert.ok(guardedTrust.score <= 0.35,
+      "Failed citation validation must not yield a high trust score");
+  }
+  const ukr = refuseAfterInvalidCitations("Який розмір стипендії?", 0);
+  assert.equal(ukr.citationValidation.retryCount, 1);
+  assert.ok(ukr.answer.includes("Не вдалося"));
 }
 
 function testCitationExtraction() {
@@ -336,6 +368,7 @@ function testClaimGroundingEvidenceValidation() {
 function run() {
   testContextBuilder();
   testCitationExtraction();
+  testFailClosedAfterCitationRetry();
   testTrustScore();
   testDocumentLevelRetrievalMetrics();
   testRecallWithDuplicateChunks();
