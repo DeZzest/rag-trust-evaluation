@@ -6,6 +6,7 @@ import { calculateTrustScore } from "../modules/rag/trust.score";
 import { RetrievedChunk } from "../modules/rag/types";
 import { calculateRetrievalMetrics } from "../modules/evaluation/retrieval.metrics";
 import { parseFaithfulnessScore } from "../modules/evaluation/faithfulness.service";
+import { buildGenerateRequestBody } from "../modules/llm/ollama.service";
 import { parseClaimGroundingResponse, unavailableClaimGrounding } from "../modules/evaluation/claim.grounding";
 import { SearchResult } from "../modules/vector-db/chroma.service";
 
@@ -295,6 +296,20 @@ function testTrustScoreWithoutGroundTruth() {
   );
 }
 
+function testOllamaStructuredOutputOptIn() {
+  assert.deepEqual(buildGenerateRequestBody("Question?", "llama3.2"), {
+    model: "llama3.2",
+    prompt: "Question?",
+    stream: false,
+  }, "Normal RAG generation must remain free-form");
+  assert.deepEqual(buildGenerateRequestBody("Classify claims", "llama3.2", { format: "json" }), {
+    model: "llama3.2",
+    prompt: "Classify claims",
+    stream: false,
+    format: "json",
+  }, "Claim judge must be able to request constrained JSON output");
+}
+
 function testClaimGroundingEvidenceValidation() {
   const sources = [
     {
@@ -373,6 +388,7 @@ function run() {
   testDocumentLevelRetrievalMetrics();
   testRecallWithDuplicateChunks();
   testFaithfulnessJudgeValidation();
+  testOllamaStructuredOutputOptIn();
   testTrustScoreWithoutGroundTruth();
   testClaimGroundingEvidenceValidation();
   console.log("Phase 3 checks passed.");

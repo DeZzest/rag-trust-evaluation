@@ -5,7 +5,30 @@ const OLLAMA_BASE_URL =
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "llama3.2";
 const OLLAMA_EVALUATION_MODEL = process.env.OLLAMA_EVALUATION_MODEL ?? "mistral";
 
-export async function generate(prompt: string, modelName?: string): Promise<string> {
+export interface GenerateOptions {
+  /** Ollama structured-output mode, used by strict JSON parsers only. */
+  format?: "json";
+}
+
+/** Pure request builder to keep the default free-form generation unchanged. */
+export function buildGenerateRequestBody(
+  prompt: string,
+  model: string,
+  options: GenerateOptions = {}
+) {
+  return {
+    model,
+    prompt,
+    stream: false,
+    ...(options.format ? { format: options.format } : {}),
+  };
+}
+
+export async function generate(
+  prompt: string,
+  modelName?: string,
+  options: GenerateOptions = {}
+): Promise<string> {
   try {
     const model = modelName ?? OLLAMA_MODEL;
 
@@ -14,11 +37,7 @@ export async function generate(prompt: string, modelName?: string): Promise<stri
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-      }),
+      body: JSON.stringify(buildGenerateRequestBody(prompt, model, options)),
     });
 
     if (!response.ok) {
