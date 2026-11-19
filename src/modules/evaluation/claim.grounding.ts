@@ -147,6 +147,9 @@ ${sourceText}
 Answer:
 ${answer}`;
 
-  const response = await generate(prompt, evaluationModel);
+  // The real stage-19 pilot exposed invalid free-form judge JSON. Ask Ollama
+  // to enforce JSON syntax; retain schema/evidence validation and fail-closed
+  // null scores if content is still unusable.
+  const response = await generate(prompt, evaluationModel, { format: "json" });
   return parseClaimGroundingResponse(response, sources);
 }
