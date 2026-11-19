@@ -16,7 +16,7 @@
     "benchmark:score": "ts-node src/modules/evaluation/benchmark.report.cli.ts",
     "benchmark:audit": "ts-node src/modules/evaluation/corpus.readiness.cli.ts",
     "ocr:stage": "python scripts/ocr_stage.py",
-    "test:ocr": "python -m unittest discover -s tests -p 'test_ocr_*.py'",
+    "test:ocr": "python -m unittest discover -s tests -p \"test_ocr_*.py\"",
     "ocr:review-template": "python scripts/ocr_review_template.py",
     "ocr:review-export": "python scripts/ocr_review_export.py",
     "corpus:snapshot": "python scripts/assemble_reviewed_snapshot.py",

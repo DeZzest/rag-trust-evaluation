@@ -188,22 +188,22 @@ class CorpusSnapshotTests(unittest.TestCase):
 
             changed = json.loads(original_sidecar)
             changed["pageDecisions"][0]["reviewedText"] = "injected"
-            provenance_file.write_text(json.dumps(changed, ensure_ascii=False))
+            provenance_file.write_text(json.dumps(changed, ensure_ascii=False), encoding="utf-8", newline="\n")
             error_if_invalid("reviewed text SHA-256 mismatch")
 
             changed = json.loads(original_sidecar)
             changed["pageDecisions"].pop()
-            provenance_file.write_text(json.dumps(changed, ensure_ascii=False))
+            provenance_file.write_text(json.dumps(changed, ensure_ascii=False), encoding="utf-8", newline="\n")
             error_if_invalid("incomplete page decisions")
 
             changed = json.loads(original_sidecar)
             changed["documentVersion"] = ""
-            provenance_file.write_text(json.dumps(changed, ensure_ascii=False))
+            provenance_file.write_text(json.dumps(changed, ensure_ascii=False), encoding="utf-8", newline="\n")
             error_if_invalid("documentVersion")
 
             changed = json.loads(original_sidecar)
             changed["sourceUrl"] = "https://other.example.org/wrong.pdf"
-            provenance_file.write_text(json.dumps(changed, ensure_ascii=False))
+            provenance_file.write_text(json.dumps(changed, ensure_ascii=False), encoding="utf-8", newline="\n")
             error_if_invalid("source URL does not match")
 
             provenance_file.write_bytes(original_sidecar)

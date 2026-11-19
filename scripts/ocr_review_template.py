@@ -49,7 +49,7 @@ def main() -> int:
         if target == args.staging.resolve():
             raise ValueError("cannot overwrite the staging file")
         target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("x", encoding="utf-8") as stream:
+        with target.open("x", encoding="utf-8", newline="\n") as stream:
             json.dump(result, stream, ensure_ascii=False, indent=2)
             stream.write("\n")
         print(json.dumps({
