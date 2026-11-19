@@ -241,7 +241,7 @@ def stage_manifest(manifest: dict, pdf_root: Path, output: Path, document_id: st
             raise FileExistsError(f"will not overwrite existing file: {target}")
         pdf = locate_cached_pdf(pdf_root, doc["sourceUrl"])
         result = process_document(doc, pdf, max_pages, dpi, min_native_chars, min_ocr_chars)
-        with target.open("x", encoding="utf-8") as stream:
+        with target.open("x", encoding="utf-8", newline="\n") as stream:
             json.dump(result, stream, indent=2, ensure_ascii=False)
             stream.write("\n")
         pages = result["pages"]
