@@ -61,3 +61,15 @@ Baseline: `0.60 * RetrievalQuality + 0.25 * CitationCoverage + 0.15 * CitationVa
 - **Після фінального paired-run:** окрема таблиця baseline vs claim-aware без вигаданих спостережень.
 
 **Не комітити в Git** локальні PDF, `data/ingested_corpus.jsonl`, OCR review, експертні розмітки або персональні журнали запусків. Для звіту тримати експортовані JSON/TXT локально.
+
+## 6. Перший реальний парний запуск claim-aware (19.11.2026, 17:34:35 UTC)
+
+Локальний артефакт: `logs/stage19-paired-demo-20261119T173435Z.json` (зберігається **лише локально**, не комітиться до репозиторію). Параметри: `lute_demo_v1`, `topK=2`, `generationModel=llama3.2`, `evaluationModel=llama3.2`, `includeClaimGrounding=true`, `includeFaithfulness=false`.
+
+- `response.success=true`; `trust.score=0.919044745` (baseline).
+- `citationValidation.coverage=1`, `citationValidity=1`, `retryCount=1`.
+- `claimGrounding.status=unavailable`, `issue=claim_grounding_invalid_json`, `claims=[]`.
+- `trust.claimAware.status=unavailable`, `score=null` — **жодне числове порівняння НЕ відбулося**.
+- `totalMs=25427`, `embeddingMs=1012`, `retrievalMs=23`, `generationMs=9300`.
+
+Висновок: реальний запуск перевірив передачу опції `includeClaimGrounding` та збереження явної недоступності метрики при невалідній відповіді судді. Це **технічна помилка формату**, а не від'ємний експертний verdict і не доказ неефективності claim-aware. У подальшому мінімальному виправленні для LLM-оцінювача увімкнено документований JSON-формат відповіді Ollama; результат після зміни має бути окремим реальним запуском, не підміняти цим числом старий `null`.
