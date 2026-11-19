@@ -264,9 +264,13 @@ def export_to_new_directory(output_dir: Path, filename: str,
     output_dir.parent.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(exist_ok=False)
     try:
-        with (output_dir / filename).open("x", encoding="utf-8") as f:
-            f.write(text)
-        with (output_dir / (filename[:-4] + ".provenance.json")).open("x", encoding="utf-8") as f:
+        # The sidecar hash is calculated over UTF-8 bytes with LF line endings.
+        # Binary output keeps the on-disk bytes identical on Windows and Unix.
+        with (output_dir / filename).open("xb") as f:
+            f.write(text.encode("utf-8"))
+        with (output_dir / (filename[:-4] + ".provenance.json")).open(
+            "x", encoding="utf-8", newline="\n"
+        ) as f:
             json.dump(provenance, f, ensure_ascii=False, indent=2)
             f.write("\n")
     except Exception:
