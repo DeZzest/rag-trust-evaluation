@@ -1,0 +1,365 @@
+{
+  "schemaVersion": "pilot-question-seeds/1",
+  "status": "unreviewed_seeds_not_gold",
+  "language": "uk",
+  "description": "Source-inspired real Ukrainian questions. Page hints are editorial navigation aids, NOT verified gold evidence. Every item needs expert review and independent adjudication before benchmarking.",
+  "sourceSelection": "data/benchmark/pilot-source-selection.json",
+  "count": 29,
+  "countsByDesignIntent": {
+    "source_finding": 25,
+    "contradiction_probe": 2,
+    "out_of_scope_probe": 2
+  },
+  "provisionalOnly": true,
+  "questions": [
+    {
+      "id": "pilot-q01",
+      "query": "Якою мовою, відповідно до наведених положень, здійснюється освітній процес у закладах вищої освіти?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        1
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q02",
+      "query": "За яких умов заклад вищої освіти може проводити окремі заняття та контрольні заходи англійською мовою?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        1
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q03",
+      "query": "Що повинен забезпечити заклад освіти, якщо студент письмово попросив переклад дисципліни державною мовою?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        1
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q04",
+      "query": "Що передбачає пункт 8.3 Статуту ЛТЕУ щодо мови викладання?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        1
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q05",
+      "query": "Як організовується вивчення державної мови для іноземних громадян, які навчаються іноземною мовою?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        1,
+        2
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q06",
+      "query": "Хто, згідно з текстом про мову освітнього процесу, визначає перелік іноземних мов викладання?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        2
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q07",
+      "query": "Яка мета Положення про робочі групи з розроблення і супроводження освітніх програм?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        3
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q08",
+      "query": "Хто очолює робочу групу освітньої програми?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        3
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q09",
+      "query": "Яким рішенням або документом визначається робоча група освітньої програми?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        4
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q10",
+      "query": "Які мінімальні вимоги до складу робочої групи освітньої програми бакалаврського рівня?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        4
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q11",
+      "query": "Які вимоги до науково-педагогічних працівників у складі робочої групи магістерського рівня?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        4
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q12",
+      "query": "Хто затверджує склад робочих груп за освітніми програмами ЛТЕУ?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        5
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q13",
+      "query": "Які функції виконує робоча група під час розроблення та супроводження освітньої програми?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        6
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q14",
+      "query": "З якими структурними підрозділами університету взаємодіє гарант освітньої програми та робоча група?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        7
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q15",
+      "query": "З якого моменту набирає чинності Положення про робочі групи освітніх програм?",
+      "documentId": "lute_regulations_2026_pdf_11",
+      "pageHints": [
+        7
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q16",
+      "query": "Яка мета організації методичної роботи в університеті за відповідним Положенням?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        3
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q17",
+      "query": "Які основні принципи методичної роботи названо в Положенні?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        4
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q18",
+      "query": "Які основні форми методичної роботи передбачено в університеті?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        5
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q19",
+      "query": "Хто координує та здійснює керівництво методичною роботою на рівні університету?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        5
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q20",
+      "query": "Яку роль виконує Науково-методична рада університету?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        6
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q21",
+      "query": "Яким способом затверджується персональний склад Науково-методичної ради університету?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        7
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q22",
+      "query": "Як часто мають відбуватися засідання Науково-методичної комісії факультету?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        8
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q23",
+      "query": "Хто керує методичною роботою на кафедрі та відповідає за її якість?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        10
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q24",
+      "query": "Як у Положенні визначається силабус освітньої компоненти?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        15
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q25",
+      "query": "Які складові має структура силабуса освітньої компоненти?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        15,
+        16
+      ],
+      "designIntent": "source_finding",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q26",
+      "query": "Чи правильно, що в ЛТЕУ всі дисципліни без винятку завжди викладаються лише англійською мовою?",
+      "documentId": "lute_regulations_2026_pdf_7",
+      "pageHints": [
+        1,
+        2
+      ],
+      "designIntent": "contradiction_probe",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q27",
+      "query": "Чи встановлено в Положенні, що Науково-методична комісія факультету проводить засідання не частіше ніж раз на рік?",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        8
+      ],
+      "designIntent": "contradiction_probe",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q28",
+      "query": "Яка точна вартість контрактного навчання на магістратурі ЛТЕУ у 2026 році?",
+      "documentId": null,
+      "pageHints": [],
+      "designIntent": "out_of_scope_probe",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    },
+    {
+      "id": "pilot-q29",
+      "query": "Назвіть прізвище чинного станом на листопад 2026 року голови Науково-методичної ради ЛТЕУ.",
+      "documentId": "lute_regulations_2026_pdf_17",
+      "pageHints": [
+        7
+      ],
+      "designIntent": "out_of_scope_probe",
+      "expertVerdict": null,
+      "expertEvidence": null,
+      "reviewStatus": "unreviewed"
+    }
+  ]
+}

@@ -79,10 +79,17 @@ function optionalText(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function parseChunks(jsonl: string): ParsedChunk[] {
+interface ParsedCorpus {
+  chunks: ParsedChunk[];
+  corpusSnapshotId?: string;
+}
+
+function parseChunks(jsonl: string): ParsedCorpus {
   const lines = jsonl.split(/\r?\n/);
   const chunks: ParsedChunk[] = [];
   const seenFragments = new Set<string>();
+  const declaredSnapshotIds = new Set<string>();
+  let hasUntaggedRows = false;
   for (let i = 0; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
     let parsed: unknown;
@@ -94,6 +101,18 @@ function parseChunks(jsonl: string): ParsedChunk[] {
     const row = record(parsed);
     const md = record(row?.metadata);
     if (!row || !md) throw new Error("ingested line " + (i + 1) + ": missing metadata");
+    // A reviewed corpus snapshot has an explicitly assigned identity that
+    // differs from SHA-256(JSONL). Preserve it in the annotation queue.
+    // Mixed or malformed identities must fail even if rows deduplicate.
+    const snapshotId = md.corpusSnapshotId;
+    if (snapshotId === undefined || snapshotId === null) {
+      hasUntaggedRows = true;
+    } else if (typeof snapshotId !== "string" ||
+               !/^sha256:[a-f0-9]{64}$/.test(snapshotId)) {
+      throw new Error("ingested line " + (i + 1) + ": invalid corpusSnapshotId");
+    } else {
+      declaredSnapshotIds.add(snapshotId);
+    }
     const body = text(row.text, "ingested line " + (i + 1) + " text");
     const docId = text(md.documentId, "ingested line " + (i + 1) + " documentId");
     const ref = documentRef(docId);
@@ -126,7 +145,10 @@ function parseChunks(jsonl: string): ParsedChunk[] {
     });
   }
   if (!chunks.length) throw new Error("ingested corpus has no valid chunks");
-  return chunks;
+  if (declaredSnapshotIds.size > 1 || (hasUntaggedRows && declaredSnapshotIds.size > 0)) {
+    throw new Error("ingested corpus mixes different or untagged corpusSnapshotId values");
+  }
+  return { chunks, corpusSnapshotId: [...declaredSnapshotIds][0] };
 }
 
 /**
@@ -152,7 +174,7 @@ export function prepareAnnotationQueue(
     throw new Error("evaluation queries: nonempty dataset required");
   }
   const originDatasetId = text(root.id, "evaluation dataset id");
-  const chunks = parseChunks(ingestedJsonl);
+  const { chunks, corpusSnapshotId } = parseChunks(ingestedJsonl);
   const usedCaseIds = new Set<string>();
 
   const cases: AnnotationQueueCase[] = root.dataset.map((entry: unknown, i: number) => {
@@ -217,7 +239,9 @@ export function prepareAnnotationQueue(
   return {
     schemaVersion: "annotation-queue/1",
     originDatasetId,
-    corpusSnapshotId: "sha256:" + hash(ingestedJsonl),
+    // Tagged reviewed snapshots use their already verified identity.
+    // Only legacy untagged JSONL retains the historical hash-based ID.
+    corpusSnapshotId: corpusSnapshotId ?? ("sha256:" + hash(ingestedJsonl)),
     ingestedSha256: hash(ingestedJsonl),
     queriesSha256: hash(queriesJson),
     cases,
